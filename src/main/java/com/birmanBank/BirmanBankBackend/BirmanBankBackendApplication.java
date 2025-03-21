@@ -1,4 +1,4 @@
-package com.birmanBank.BirmanBankBackend;
+lpackage com.birmanBank.BirmanBankBackend;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -17,7 +17,7 @@ public class BirmanBankBackendApplication {
 class WebController {
     @GetMapping("/")
     public String home(Model model) {
-        model.addAttribute("message", "Spring Boot Web Interface Works!");
+        model.addAttribute("message", "hello this seems to work?");
         return "index";
     }
 }
