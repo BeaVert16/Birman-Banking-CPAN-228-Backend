@@ -1,4 +1,4 @@
-lpackage com.birmanBank.BirmanBankBackend;
+package com.birmanBank.BirmanBankBackend;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
