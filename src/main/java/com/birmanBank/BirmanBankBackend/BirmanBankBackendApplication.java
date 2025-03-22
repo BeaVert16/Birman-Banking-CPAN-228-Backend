@@ -17,7 +17,7 @@ public class BirmanBankBackendApplication {
 class WebController {
     @GetMapping("/")
     public String home(Model model) {
-        model.addAttribute("message", "hello this seems to work?");
+        model.addAttribute("message", "Back To working?");
         return "index";
     }
 }
