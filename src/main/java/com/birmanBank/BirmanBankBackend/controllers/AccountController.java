@@ -2,7 +2,6 @@ package com.birmanBank.BirmanBankBackend.controllers;
 
 import com.birmanBank.BirmanBankBackend.models.Account;
 import com.birmanBank.BirmanBankBackend.repositories.AccountRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,8 +11,11 @@ import java.util.List;
 @RequestMapping("/api/accounts")
 public class AccountController {
 
-    @Autowired
     private AccountRepository accountRepository;
+
+    public AccountController(AccountRepository accountRepository) {
+        this.accountRepository = accountRepository;
+    }
 
     // Get all accounts
     @GetMapping
@@ -26,5 +28,15 @@ public class AccountController {
     public ResponseEntity<Account> createAccount(@RequestBody Account account) {
         Account savedAccount = accountRepository.save(account);
         return ResponseEntity.ok(savedAccount);
+    }
+
+    // Get account by card number
+    @GetMapping("/{cardNumber}")
+    public ResponseEntity<Account> getAccountByCardNumber(@PathVariable int cardNumber) {
+        Account account = accountRepository.findByCardNumber(cardNumber);
+        if (account == null) {
+            return ResponseEntity.status(404).body(null);
+        }
+        return ResponseEntity.ok(account);
     }
 }

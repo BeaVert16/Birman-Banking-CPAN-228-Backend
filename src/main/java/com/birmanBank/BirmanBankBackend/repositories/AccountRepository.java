@@ -6,5 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface AccountRepository extends MongoRepository<Account, String> {
-    Account findByCardNumber(String email); // find account using card number
+    Account findByCardNumber(int cardNumber); // find account using card number
 }

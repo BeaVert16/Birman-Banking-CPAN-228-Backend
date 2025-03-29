@@ -3,7 +3,6 @@ package com.birmanBank.BirmanBankBackend.controllers;
 import com.birmanBank.BirmanBankBackend.models.Account;
 import com.birmanBank.BirmanBankBackend.repositories.AccountRepository;
 import com.birmanBank.BirmanBankBackend.utils.PasswordUtil;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,8 +10,11 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    @Autowired
     private AccountRepository accountRepository;
+
+    public AuthController(AccountRepository accountRepository) {
+        this.accountRepository = accountRepository;
+    }
 
     // Login endpoint
     @PostMapping("/login")
@@ -33,16 +35,15 @@ public class AuthController {
 
     // DTO for login request
     public static class LoginRequest {
-        private String email;
+        private int cardNumber;
         private String password;
 
-        // Getters and setters
-        public String getEmail() {
-            return email;
+        public int getCardNumber() {
+            return cardNumber;
         }
 
-        public void setEmail(String email) {
-            this.email = email;
+        public void setCardNumber(int cardNumber) {
+            this.cardNumber = cardNumber;
         }
 
         public String getPassword() {
