@@ -16,27 +16,25 @@ public class AccountController {
     public AccountController(AccountRepository accountRepository) {
         this.accountRepository = accountRepository;
     }
-
-    // Get all accounts
-    @GetMapping
-    public List<Account> getAllAccounts() {
-        return accountRepository.findAll();
-    }
+    //// Get account by card number
+    // @GetMapping("/{cardNumber}")
+    // public ResponseEntity<Account> getAccountByCardNumber(@PathVariable int cardNumber) {
+    //     Account account = accountRepository.findByCardNumber(cardNumber);
+    //     if (account == null) {
+    //         return ResponseEntity.status(404).body(null);
+    //     }
+    //     return ResponseEntity.ok(account);
+    // }
+    //// Get all accounts
+    // @GetMapping ("/")
+    // public List<Account> getAllAccounts() {
+    //     return accountRepository.findAll();
+    // }
 
     // Create a new account
-    @PostMapping
+    @PostMapping ("/register")
     public ResponseEntity<Account> createAccount(@RequestBody Account account) {
         Account savedAccount = accountRepository.save(account);
         return ResponseEntity.ok(savedAccount);
-    }
-
-    // Get account by card number
-    @GetMapping("/{cardNumber}")
-    public ResponseEntity<Account> getAccountByCardNumber(@PathVariable int cardNumber) {
-        Account account = accountRepository.findByCardNumber(cardNumber);
-        if (account == null) {
-            return ResponseEntity.status(404).body(null);
-        }
-        return ResponseEntity.ok(account);
     }
 }
