@@ -1,4 +1,1 @@
-spring.application.name=BirmanBankBackend
-
-spring.data.mongodb.uri=
-spring.data.mongodb.database=
+DB_URI=mongodb+srv://Joshua:QX9DzyGRAC@birmanbank.wvqrnfl.mongodb.net/
