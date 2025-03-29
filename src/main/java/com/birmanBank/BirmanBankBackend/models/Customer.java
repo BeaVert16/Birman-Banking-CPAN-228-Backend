@@ -18,8 +18,8 @@ public class Customer {
     private String name;
     private String address;
     private String contactDetails;
-    private List<String> accounts; // List of Account IDs
-    private Map<String, Double> balances; // AccountId -> Balance
-    private List<String> transactions; // List of Transaction IDs
-    // Other customer-specific fields
+    private List<String> accounts; // List of Account IDs.
+    private Map<String, Double> balances; // AccountId -> Balance.
+    private List<String> transactions; // List of Transaction IDs.
+    // Other customer-specific fields.
 }

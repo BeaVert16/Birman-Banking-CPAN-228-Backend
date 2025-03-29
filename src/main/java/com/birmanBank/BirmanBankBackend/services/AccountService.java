@@ -13,13 +13,13 @@ public class AccountService {
         this.accountRepository = accountRepository;
     }
 
-    // Create a new account with validation
+    // Create a new account with validation.
     public Account createAccount(Account account) {
         validateCardNumber(account.getCardNumber());
         return accountRepository.save(account);
     }
 
-    // Validate that the card number is exactly 16 digits
+    // Validate that the card number is exactly 16-digits.
     private void validateCardNumber(int cardNumber) {
         String cardNumberStr = String.valueOf(cardNumber);
         if (cardNumberStr.length() != 16 || !cardNumberStr.matches("\\d{16}")) {
