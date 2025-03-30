@@ -1,26 +1,29 @@
 package com.birmanBank.BirmanBankBackend.models;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
+import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 @Document(collection = "accounts")
 public class Account {
     @Id
-    private String id;
-    @Pattern(regexp = "\\d{16}", message = "Card number must be exactly 16 digits")
-    private int cardNumber;
-    private String password;
-    private Role role;
-}
+    private String accountId;
 
-enum Role {
-    CUSTOMER,
-    ADMIN
+    //foreign key linking to the Client's clientId.
+    //ensures that each account belongs to one and only one client.
+    private String clientId;  
+
+    private String accountType;
+    private BigDecimal balance; //current balance of the account
+    private String status; //active, inactive
+
+    //log time for admin side and client side reason
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }
