@@ -1,4 +1,4 @@
-package com.birmanBank.BirmanBankBackend.services.UserServices;
+package com.birmanBank.BirmanBankBackend.services.ClientServices;
 
 import org.springframework.stereotype.Service;
 
