@@ -18,12 +18,12 @@ public class ClientController {
         this.clientService = clientService;
     }
 
-    // /me is a JWT endpoint used to return information about the logged-in client
+    // /me is a JWT endpoint used to return information based on the logged-in client
     //used to get logged-in client details using JWT /me endpoint
     //endpoint returns the details of the logged-in client
     @GetMapping("/me")
     public Optional<Client> getLoggedInClient(Authentication authentication) {
-        String userCardNumber = authentication.getName(); // Get the logged-in user's card number
+        String userCardNumber = authentication.getName(); // get the logged-in user's card number
         return clientService.getClientByUserCardNumber(userCardNumber);
     }
 }

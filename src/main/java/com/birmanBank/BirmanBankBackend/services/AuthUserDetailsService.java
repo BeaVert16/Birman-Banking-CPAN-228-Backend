@@ -18,12 +18,12 @@ public class AuthUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String cardNumber) throws UsernameNotFoundException {
-        //fetch the user from the database using the card number
+        // fetch the user from the database using the card number
         User appUser = userRepository.findById(cardNumber)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with card number: " + cardNumber));
 
-        //create a UserDetails object
-        //converts the User entity to something that Spring Security can understand
+        // create a UserDetails object
+        // converts the User entity to something that Spring Security can understand
         return org.springframework.security.core.userdetails.User.withUsername(appUser.getCardNumber())
                 .password(appUser.getPassword())
                 .roles(appUser.getRole())

@@ -13,6 +13,12 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
+
 import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
@@ -34,13 +40,13 @@ public class SecurityConfig {
             org.springframework.security.config.annotation.web.builders.HttpSecurity http) throws Exception {
         http
                 // disable CSRF
-                // CSRF is not needed for stateless APIs -- they dont maintain session state
                 .csrf(csrf -> csrf.disable())
+                // enable CORS
+                .cors(withDefaults())
                 .authorizeHttpRequests(authz -> authz // defines authorization rules
                         .requestMatchers("/api/auth/**").permitAll() // allow login and register endpoints
                         .anyRequest().authenticated())
                 // disable session management
-                // using JWTs for authentication so we dont need to maintain session state
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class)
                 .httpBasic(withDefaults());
@@ -63,5 +69,18 @@ public class SecurityConfig {
     // configure AuthenticationManagerBuilder - used to set up authentication
     public void configure(AuthenticationManagerBuilder auth) throws Exception {
         auth.userDetailsService(userDetailsService).passwordEncoder(passwordEncoder());
+    }
+
+    // define a CORS configuration source
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of("*")); // allow all origins
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS")); // allow specific methods
+        configuration.setAllowedHeaders(List.of("*")); // allow all headers
+        configuration.setExposedHeaders(List.of("Authorization")); // allow exposed headers
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 }
