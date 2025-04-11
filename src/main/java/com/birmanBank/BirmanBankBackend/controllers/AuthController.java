@@ -1,9 +1,12 @@
 package com.birmanBank.BirmanBankBackend.controllers;
 
+import com.birmanBank.BirmanBankBackend.models.Account;
 import com.birmanBank.BirmanBankBackend.models.Client;
 import com.birmanBank.BirmanBankBackend.models.User;
+import com.birmanBank.BirmanBankBackend.models.Address;
 import com.birmanBank.BirmanBankBackend.repositories.UserRepository;
-import com.birmanBank.BirmanBankBackend.repositories.UserRepositories.ClientRepository;
+import com.birmanBank.BirmanBankBackend.repositories.ClientRepositories.ClientRepository;
+import com.birmanBank.BirmanBankBackend.services.ClientServices.AccountService;
 import com.birmanBank.BirmanBankBackend.utils.JwtUtil;
 
 import org.springframework.security.authentication.AuthenticationManager;
@@ -13,6 +16,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -27,15 +31,17 @@ public class AuthController {
     private final UserRepository userRepository;
     private final ClientRepository clientRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AccountService accountService;
 
     public AuthController(AuthenticationManager authenticationManager, JwtUtil jwtUtil,
             UserRepository userRepository, ClientRepository clientRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder, AccountService accountService) {
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
         this.userRepository = userRepository;
         this.clientRepository = clientRepository;
         this.passwordEncoder = passwordEncoder;
+        this.accountService = accountService;
     }
 
     // login endpoint
@@ -76,13 +82,26 @@ public class AuthController {
         clientRequest.setLastName((String) requestBody.get("lastName"));
         clientRequest.setPhoneNumber((String) requestBody.get("phoneNumber"));
         clientRequest.setEmail((String) requestBody.get("email"));
-        clientRequest.setAddress((String) requestBody.get("address"));
+
+        Address address = Address.builder()
+                .address((String) requestBody.get("address"))
+                .city((String) requestBody.get("city"))
+                .postalCode((String) requestBody.get("postalCode"))
+                .additionalInfo((String) requestBody.get("additionalInfo"))
+                .province((String) requestBody.get("province"))
+                .country((String) requestBody.get("country"))
+                .build();
+        clientRequest.setAddress(address);
+
         clientRequest.setSin((String) requestBody.get("sin"));
 
         // extract the password from the request body to be used for the User password
         // (in User model)
         String password = (String) requestBody.get("password");
-
+        if (password == null || password.trim().isEmpty()) {
+            throw new IllegalArgumentException("Password cannot be null or empty");
+        }
+        
         // grenerate a random 16-digit card number ending in 8008
         String cardNumber = generateCardNumber();
 
@@ -118,6 +137,17 @@ public class AuthController {
         // saves the client to the database
         clientRepository.save(client);
 
+        Account account = Account.builder()
+                .accountId(generateAccountId())
+                .clientId(client.getClientId())
+                .accountType("Chequing")
+                .balance(BigDecimal.ZERO)
+                .status("ACTIVE")
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        accountService.createAccount(account);
+
         // returns a response success message
         Map<String, String> response = new HashMap<>();
         response.put("message", "Registration successful");
@@ -144,5 +174,10 @@ public class AuthController {
     // helper method to generate a unique client ID
     private String generateClientId() {
         return "CLIENT-" + System.currentTimeMillis();
+    }
+
+    // Helper method to generate a unique account ID
+    private String generateAccountId() {
+        return "ACCOUNT-" + System.currentTimeMillis();
     }
 }

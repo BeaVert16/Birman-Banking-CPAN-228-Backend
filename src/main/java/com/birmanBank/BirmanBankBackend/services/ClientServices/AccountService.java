@@ -3,7 +3,7 @@ package com.birmanBank.BirmanBankBackend.services.ClientServices;
 import org.springframework.stereotype.Service;
 
 import com.birmanBank.BirmanBankBackend.models.Account;
-import com.birmanBank.BirmanBankBackend.repositories.UserRepositories.AccountRepository;
+import com.birmanBank.BirmanBankBackend.repositories.ClientRepositories.AccountRepository;
 
 import java.util.List;
 import java.util.Optional;

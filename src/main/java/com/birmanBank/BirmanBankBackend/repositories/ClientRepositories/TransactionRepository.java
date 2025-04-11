@@ -1,4 +1,4 @@
-package com.birmanBank.BirmanBankBackend.repositories.UserRepositories;
+package com.birmanBank.BirmanBankBackend.repositories.ClientRepositories;
 
 import org.springframework.data.mongodb.repository.MongoRepository;
 

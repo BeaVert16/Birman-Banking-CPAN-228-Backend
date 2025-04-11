@@ -1,4 +1,4 @@
-package com.birmanBank.BirmanBankBackend.filters; // Updated package to match folder name
+package com.birmanBank.BirmanBankBackend.filters;
 
 import com.birmanBank.BirmanBankBackend.utils.JwtUtil;
 import org.springframework.security.core.context.SecurityContextHolder;

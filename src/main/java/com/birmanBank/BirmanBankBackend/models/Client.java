@@ -13,18 +13,17 @@ import java.time.LocalDateTime;
 @Document(collection = "clients")
 public class Client {
     @Id
-    private String clientId; //unique identifier for the client
-
-    //foreign key referencing the Users table's cardNumber
-    private String userCardNumber; 
+    private String clientId; // Unique identifier for the client
+    private String userCardNumber; // Card number assigned to the client
 
     private String firstName;
     private String lastName;
     private String phoneNumber;
     private String email;
-    private String address;
-    private String sin; // Social Insurance Number
+    private Address address;
+    private String sin;
+    private String dateOfBirth;
 
-    //log time for admin side and client side reasons
+    // Log time for admin and client-side purposes
     private LocalDateTime createdAt;
 }
