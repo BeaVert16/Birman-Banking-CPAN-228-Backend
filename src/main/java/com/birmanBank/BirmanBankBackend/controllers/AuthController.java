@@ -101,7 +101,7 @@ public class AuthController {
         if (password == null || password.trim().isEmpty()) {
             throw new IllegalArgumentException("Password cannot be null or empty");
         }
-        
+
         // grenerate a random 16-digit card number ending in 8008
         String cardNumber = generateCardNumber();
 
@@ -171,6 +171,41 @@ public class AuthController {
         return cardNumber.toString();
     }
 
+    @GetMapping("/session-check")
+    public Map<String, Object> sessionCheck(@RequestHeader("Authorization") String authorizationHeader) {
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            // Extract the token from the Authorization header
+            if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+                throw new IllegalArgumentException("Invalid Authorization header");
+            }
+            String token = authorizationHeader.substring(7);
+
+            // Validate the token
+            String username = jwtUtil.extractUsername(token);
+            if (username == null || !jwtUtil.validateToken(token)) {
+                throw new RuntimeException("Invalid or expired token");
+            }
+
+            // Retrieve the user details
+            User user = userRepository.findByCardNumber(username)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            // Build the response
+            response.put("isAuthenticated", true);
+            response.put("user", Map.of(
+                    "cardNumber", user.getCardNumber(),
+                    "role", user.getRole(),
+                    "isAdmin", "ADMIN".equals(user.getRole())));
+        } catch (Exception e) {
+            response.put("isAuthenticated", false);
+            response.put("error", e.getMessage());
+        }
+
+        return response;
+    }
+
     // helper method to generate a unique client ID
     private String generateClientId() {
         return "CLIENT-" + System.currentTimeMillis();
@@ -180,4 +215,5 @@ public class AuthController {
     private String generateAccountId() {
         return "ACCOUNT-" + System.currentTimeMillis();
     }
+
 }
