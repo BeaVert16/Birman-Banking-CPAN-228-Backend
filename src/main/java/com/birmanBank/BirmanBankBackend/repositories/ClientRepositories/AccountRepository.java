@@ -11,4 +11,3 @@ public interface AccountRepository extends MongoRepository<Account, String> {
     //will return a list of accounts associated with the given client ID
     List<Account> findByClientId(String clientId);
 }
-

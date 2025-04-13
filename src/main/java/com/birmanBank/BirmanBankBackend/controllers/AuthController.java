@@ -7,19 +7,28 @@ import com.birmanBank.BirmanBankBackend.models.Address;
 import com.birmanBank.BirmanBankBackend.repositories.UserRepository;
 import com.birmanBank.BirmanBankBackend.repositories.ClientRepositories.ClientRepository;
 import com.birmanBank.BirmanBankBackend.services.ClientServices.AccountService;
+import com.birmanBank.BirmanBankBackend.services.ClientServices.ClientService;
 import com.birmanBank.BirmanBankBackend.utils.JwtUtil;
 
+import jakarta.servlet.http.HttpServletRequest;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 
 @RestController
@@ -32,51 +41,53 @@ public class AuthController {
     private final ClientRepository clientRepository;
     private final PasswordEncoder passwordEncoder;
     private final AccountService accountService;
+    private final ClientService clientService;
 
     public AuthController(AuthenticationManager authenticationManager, JwtUtil jwtUtil,
             UserRepository userRepository, ClientRepository clientRepository,
-            PasswordEncoder passwordEncoder, AccountService accountService) {
+            PasswordEncoder passwordEncoder, AccountService accountService,
+            ClientService clientService) {
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
         this.userRepository = userRepository;
         this.clientRepository = clientRepository;
         this.passwordEncoder = passwordEncoder;
         this.accountService = accountService;
+        this.clientService = clientService;
     }
 
-    // login endpoint
-    // used to authenticate the user and generate a JWT token
     @PostMapping("/login")
     public Map<String, String> login(@RequestBody Map<String, String> loginRequest) {
         String cardNumber = loginRequest.get("cardNumber");
         String password = loginRequest.get("password");
 
+        if (cardNumber == null || password == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Card number and password are required");
+        }
+
         try {
-            // authenticate the user using the card number and password
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(cardNumber, password));
 
-            // generate a JWT token
             String token = jwtUtil.generateToken(authentication.getName());
 
-            // return a response with the token
             Map<String, String> response = new HashMap<>();
             response.put("message", "Login successful");
             response.put("token", token);
             return response;
 
-            // catch any authentication issues
         } catch (AuthenticationException e) {
-            throw new RuntimeException("Invalid card number or password");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
     }
 
-    // register endpoint
-    // used to register a new client
     @PostMapping("/register")
     public Map<String, String> register(@RequestBody Map<String, Object> requestBody) {
+        String password = (String) requestBody.get("password");
+        if (password == null || password.trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password cannot be null or empty");
+        }
 
-        // extract the client details from the request body
         Client clientRequest = new Client();
         clientRequest.setFirstName((String) requestBody.get("firstName"));
         clientRequest.setLastName((String) requestBody.get("lastName"));
@@ -94,53 +105,43 @@ public class AuthController {
         clientRequest.setAddress(address);
 
         clientRequest.setSin((String) requestBody.get("sin"));
+        clientRequest.setDateOfBirth((String) requestBody.get("dateOfBirth"));
 
-        // extract the password from the request body to be used for the User password
-        // (in User model)
-        String password = (String) requestBody.get("password");
-        if (password == null || password.trim().isEmpty()) {
-            throw new IllegalArgumentException("Password cannot be null or empty");
-        }
-
-        // grenerate a random 16-digit card number ending in 8008
         String cardNumber = generateCardNumber();
-
-        // encode the password using BCrypt
         String encodedPassword = passwordEncoder.encode(password);
 
-        // creates a new User object with the password from the request body
+        // Ensure generated card number is unique
+        while (userRepository.findByCardNumber(cardNumber).isPresent()) {
+            cardNumber = generateCardNumber();
+        }
+
         User user = User.builder()
                 .cardNumber(cardNumber)
                 .password(encodedPassword)
-                .role("CLIENT") // automatically assign the role as CLIENT
-                .createdAt(LocalDateTime.now()) // log time of creation for admin
-                .updatedAt(LocalDateTime.now()) // log update time for admin and logging purposes
+                .role("CLIENT") // Default role to CLIENT
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
                 .build();
-
-        // saves the user to the database
         userRepository.save(user);
 
-        // creates a new Client object
         Client client = Client.builder()
-                .clientId(generateClientId()) // generate a unique client ID
-                .userCardNumber(cardNumber) // link the Users table's cardNumber to the Clients table so its like a
-                                            // foreign key
+                .clientId(cardNumber) // Use card number as client ID
+                .userCardNumber(cardNumber)
                 .firstName(clientRequest.getFirstName())
                 .lastName(clientRequest.getLastName())
                 .phoneNumber(clientRequest.getPhoneNumber())
                 .email(clientRequest.getEmail())
                 .address(clientRequest.getAddress())
                 .sin(clientRequest.getSin())
+                .dateOfBirth(clientRequest.getDateOfBirth())
                 .createdAt(LocalDateTime.now())
                 .build();
-
-        // saves the client to the database
         clientRepository.save(client);
 
         Account account = Account.builder()
                 .accountId(generateAccountId())
                 .clientId(client.getClientId())
-                .accountType("Chequing")
+                .accountType("Chequing") // Default account type
                 .balance(BigDecimal.ZERO)
                 .status("ACTIVE")
                 .createdAt(LocalDateTime.now())
@@ -148,72 +149,59 @@ public class AuthController {
                 .build();
         accountService.createAccount(account);
 
-        // returns a response success message
         Map<String, String> response = new HashMap<>();
         response.put("message", "Registration successful");
-        response.put("cardNumber", cardNumber); // return the generated card number so user can use it to login
+        response.put("cardNumber", cardNumber);
         return response;
     }
 
-    // helper method to generate a random 16-digit card number ending in 8008
-    private String generateCardNumber() {
-        Random random = new Random();
-        StringBuilder cardNumber = new StringBuilder();
-
-        // generate the first 12 random digits
-        for (int i = 0; i < 12; i++) {
-            cardNumber.append(random.nextInt(10)); // Append a random digit (0-9)
-        }
-
-        // append "8008" to the end
-        cardNumber.append("8008");
-
-        return cardNumber.toString();
-    }
-
     @GetMapping("/session-check")
-    public Map<String, Object> sessionCheck(@RequestHeader("Authorization") String authorizationHeader) {
+    public ResponseEntity<?> sessionCheck(HttpServletRequest request) {
         Map<String, Object> response = new HashMap<>();
-
         try {
-            // Extract the token from the Authorization header
+            String authorizationHeader = request.getHeader("Authorization");
             if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
                 throw new IllegalArgumentException("Invalid Authorization header");
             }
             String token = authorizationHeader.substring(7);
 
-            // Validate the token
             String username = jwtUtil.extractUsername(token);
             if (username == null || !jwtUtil.validateToken(token)) {
                 throw new RuntimeException("Invalid or expired token");
             }
 
-            // Retrieve the user details
             User user = userRepository.findByCardNumber(username)
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
-            // Build the response
+            Client client = clientRepository.findByUserCardNumber(user.getCardNumber())
+                    .orElseThrow(() -> new RuntimeException("Client not found"));
+
             response.put("isAuthenticated", true);
             response.put("user", Map.of(
                     "cardNumber", user.getCardNumber(),
                     "role", user.getRole(),
-                    "isAdmin", "ADMIN".equals(user.getRole())));
+                    "isAdmin", "ADMIN".equals(user.getRole()),
+                    "firstName", client.getFirstName()));
+
         } catch (Exception e) {
             response.put("isAuthenticated", false);
             response.put("error", e.getMessage());
         }
 
-        return response;
+        return ResponseEntity.ok(response);
     }
 
-    // helper method to generate a unique client ID
-    private String generateClientId() {
-        return "CLIENT-" + System.currentTimeMillis();
+    private String generateCardNumber() {
+        Random random = new Random();
+        StringBuilder cardNumber = new StringBuilder();
+        for (int i = 0; i < 12; i++) {
+            cardNumber.append(random.nextInt(10));
+        }
+        cardNumber.append("8008");
+        return cardNumber.toString();
     }
 
-    // Helper method to generate a unique account ID
     private String generateAccountId() {
-        return "ACCOUNT-" + System.currentTimeMillis();
+        return String.valueOf(System.currentTimeMillis());
     }
-
 }

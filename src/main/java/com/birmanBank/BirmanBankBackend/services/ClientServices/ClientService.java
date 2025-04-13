@@ -39,6 +39,8 @@ public class ClientService {
         return clientRepository.findAll();
     }
     
+    
+
     // //update a client
     // public Client updateClient(Client client) {
     //     return clientRepository.save(client);

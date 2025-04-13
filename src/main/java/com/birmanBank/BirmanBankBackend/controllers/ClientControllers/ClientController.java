@@ -11,16 +11,12 @@ import java.util.Optional;
 @RequestMapping("/api/clients")
 public class ClientController {
 
-    
     private ClientService clientService;
 
     public ClientController(ClientService clientService) {
         this.clientService = clientService;
     }
 
-    //me is a JWT endpoint used to return information based on the logged-in client
-    //used to get logged-in client details using JWT /me endpoint
-    //endpoint returns the details of the logged-in client
     @GetMapping("/me")
     public Optional<Client> getLoggedInClient(Authentication authentication) {
         String userCardNumber = authentication.getName();

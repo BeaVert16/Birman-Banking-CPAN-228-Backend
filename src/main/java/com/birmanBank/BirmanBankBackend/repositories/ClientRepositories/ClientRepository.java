@@ -11,4 +11,3 @@ public interface ClientRepository extends MongoRepository<Client, String> {
     //will return an Optional<Client> object, which may or may not contain a Client object
     Optional<Client> findByUserCardNumber(String userCardNumber);
 }
-
