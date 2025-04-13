@@ -19,11 +19,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Random;
 
 @RestController
@@ -36,19 +34,16 @@ public class AuthController {
     private final ClientRepository clientRepository;
     private final PasswordEncoder passwordEncoder;
     private final AccountService accountService;
-    private final ClientService clientService;
 
     public AuthController(AuthenticationManager authenticationManager, AuthenticationService authenticationService,
             UserRepository userRepository, ClientRepository clientRepository,
-            PasswordEncoder passwordEncoder, AccountService accountService,
-            ClientService clientService) {
+            PasswordEncoder passwordEncoder, AccountService accountService) {
         this.authenticationManager = authenticationManager;
         this.authenticationService = authenticationService;
         this.userRepository = userRepository;
         this.clientRepository = clientRepository;
         this.passwordEncoder = passwordEncoder;
         this.accountService = accountService;
-        this.clientService = clientService;
     }
 
     @PostMapping("/login")
@@ -133,16 +128,12 @@ public class AuthController {
                 .build();
         clientRepository.save(client);
 
-        Account account = Account.builder()
-                .accountId(generateAccountId())
-                .clientId(client.getClientId())
-                .accountType("Chequing") // Default account type
-                .balance(BigDecimal.ZERO)
-                .status("ACTIVE")
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .build();
-        accountService.createAccount(account);
+        // Inside the register method
+        Account account = accountService.createAndAttachAccount(
+                client.getClientId(),
+                null, // Default account name
+                "Chequing" // Default account type
+        );
 
         Map<String, String> response = new HashMap<>();
         response.put("message", "Registration successful");

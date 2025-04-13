@@ -19,6 +19,7 @@ public class Account {
     //ensures that each account belongs to one and only one client.
     private String clientId;  
 
+    private String accountName;
     private String accountType;
     private BigDecimal balance; //current balance of the account
     private String status; //active, inactive
