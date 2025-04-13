@@ -26,7 +26,8 @@ public class Transaction {
     private LocalDateTime timestamp; //date and time of the transaction
 
     //used when the transaction is a transfer to another account.
-    private String transferToAccountId;  
+    private String transferToAccountId;
+    private String recipientPhoneNumber;  
 
     private String description;
 }

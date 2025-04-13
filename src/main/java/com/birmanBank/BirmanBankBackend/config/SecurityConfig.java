@@ -1,7 +1,7 @@
 package com.birmanBank.BirmanBankBackend.config;
 
 import com.birmanBank.BirmanBankBackend.filters.JwtRequestFilter;
-import com.birmanBank.BirmanBankBackend.services.AuthUserDetailsService;
+import com.birmanBank.BirmanBankBackend.services.AuthenticationService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -25,11 +25,11 @@ import static org.springframework.security.config.Customizer.withDefaults;
 @EnableWebSecurity
 public class SecurityConfig {
 
-    private final AuthUserDetailsService userDetailsService;
+    private final AuthenticationService userDetailsService;
     private final JwtRequestFilter jwtRequestFilter;
 
     public SecurityConfig(JwtRequestFilter jwtRequestFilter,
-            AuthUserDetailsService userDetailsService) {
+            AuthenticationService userDetailsService) {
         this.userDetailsService = userDetailsService;
         this.jwtRequestFilter = jwtRequestFilter;
     }

@@ -1,25 +1,30 @@
-package com.birmanBank.BirmanBankBackend.controllers.ClientControllers;
+// package com.birmanBank.BirmanBankBackend.controllers.ClientControllers;
 
-import com.birmanBank.BirmanBankBackend.models.Client;
-import com.birmanBank.BirmanBankBackend.services.ClientServices.ClientService;
-import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.*;
+// import com.birmanBank.BirmanBankBackend.models.Client;
+// import com.birmanBank.BirmanBankBackend.services.AuthenticationService;
+// import com.birmanBank.BirmanBankBackend.services.ClientServices.ClientService;
+// import org.springframework.security.core.annotation.AuthenticationPrincipal;
+// import org.springframework.security.core.userdetails.UserDetails;
+// import org.springframework.web.bind.annotation.*;
 
-import java.util.Optional;
+// @RestController
+// @RequestMapping("/api/clients")
+// public class ClientController {
 
-@RestController
-@RequestMapping("/api/clients")
-public class ClientController {
+//     private final ClientService clientService;
+//     private final AuthenticationService authenticationService;
 
-    private ClientService clientService;
+//     public ClientController(ClientService clientService, AuthenticationService authenticationService) {
+//         this.clientService = clientService;
+//         this.authenticationService = authenticationService;
+//     }
 
-    public ClientController(ClientService clientService) {
-        this.clientService = clientService;
-    }
+//     @GetMapping("/me")
+//     public Client getLoggedInClient(@AuthenticationPrincipal UserDetails userDetails) {
+//         // Validate the authenticated user
+//         String cardNumber = authenticationService.validateAuthenticatedUser(userDetails);
 
-    @GetMapping("/me")
-    public Optional<Client> getLoggedInClient(Authentication authentication) {
-        String userCardNumber = authentication.getName();
-        return clientService.getClientByUserCardNumber(userCardNumber);
-    }
-}
+//         // Fetch the client details using the card number
+//         return authenticationService.getAuthenticatedClient(cardNumber);
+//     }
+// }

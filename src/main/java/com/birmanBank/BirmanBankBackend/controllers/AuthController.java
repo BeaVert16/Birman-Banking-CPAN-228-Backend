@@ -6,20 +6,15 @@ import com.birmanBank.BirmanBankBackend.models.User;
 import com.birmanBank.BirmanBankBackend.models.Address;
 import com.birmanBank.BirmanBankBackend.repositories.UserRepository;
 import com.birmanBank.BirmanBankBackend.repositories.ClientRepositories.ClientRepository;
+import com.birmanBank.BirmanBankBackend.services.AuthenticationService;
 import com.birmanBank.BirmanBankBackend.services.ClientServices.AccountService;
 import com.birmanBank.BirmanBankBackend.services.ClientServices.ClientService;
-import com.birmanBank.BirmanBankBackend.utils.JwtUtil;
-
 import jakarta.servlet.http.HttpServletRequest;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -36,19 +31,19 @@ import java.util.Random;
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
-    private final JwtUtil jwtUtil;
+    private final AuthenticationService authenticationService;
     private final UserRepository userRepository;
     private final ClientRepository clientRepository;
     private final PasswordEncoder passwordEncoder;
     private final AccountService accountService;
     private final ClientService clientService;
 
-    public AuthController(AuthenticationManager authenticationManager, JwtUtil jwtUtil,
+    public AuthController(AuthenticationManager authenticationManager, AuthenticationService authenticationService,
             UserRepository userRepository, ClientRepository clientRepository,
             PasswordEncoder passwordEncoder, AccountService accountService,
             ClientService clientService) {
         this.authenticationManager = authenticationManager;
-        this.jwtUtil = jwtUtil;
+        this.authenticationService = authenticationService;
         this.userRepository = userRepository;
         this.clientRepository = clientRepository;
         this.passwordEncoder = passwordEncoder;
@@ -69,14 +64,14 @@ public class AuthController {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(cardNumber, password));
 
-            String token = jwtUtil.generateToken(authentication.getName());
+            String token = authenticationService.generateToken(authentication.getName());
 
             Map<String, String> response = new HashMap<>();
             response.put("message", "Login successful");
             response.put("token", token);
             return response;
 
-        } catch (AuthenticationException e) {
+        } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
     }
@@ -160,15 +155,7 @@ public class AuthController {
         Map<String, Object> response = new HashMap<>();
         try {
             String authorizationHeader = request.getHeader("Authorization");
-            if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-                throw new IllegalArgumentException("Invalid Authorization header");
-            }
-            String token = authorizationHeader.substring(7);
-
-            String username = jwtUtil.extractUsername(token);
-            if (username == null || !jwtUtil.validateToken(token)) {
-                throw new RuntimeException("Invalid or expired token");
-            }
+            String username = authenticationService.validateAndExtractUsername(authorizationHeader);
 
             User user = userRepository.findByCardNumber(username)
                     .orElseThrow(() -> new RuntimeException("User not found"));
