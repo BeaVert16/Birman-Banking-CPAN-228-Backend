@@ -47,27 +47,43 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public Map<String, String> login(@RequestBody Map<String, String> loginRequest) {
+    public ResponseEntity<?> login(@RequestBody Map<String, String> loginRequest) { // Changed return type to
+                                                                                    // ResponseEntity<?>
         String cardNumber = loginRequest.get("cardNumber");
         String password = loginRequest.get("password");
+        Map<String, Object> response = new HashMap<>(); // Use Map<String, Object> for flexibility
 
-        if (cardNumber == null || password == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Card number and password are required");
+        if (cardNumber == null || cardNumber.trim().isEmpty() || password == null || password.isEmpty()) {
+            response.put("message", "Card number and password are required");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response); // Return 400 with JSON body
         }
 
         try {
+            // This is where Spring Security attempts authentication using your
+            // AuthenticationService (UserDetailsService)
+            // and PasswordEncoder configured in SecurityConfig.
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(cardNumber, password));
 
+            // If authentication succeeds:
             String token = authenticationService.generateToken(authentication.getName());
+            System.out.println("Generated token: " + token); // Log the generated token
 
-            Map<String, String> response = new HashMap<>();
             response.put("message", "Login successful");
             response.put("token", token);
-            return response;
+            return ResponseEntity.ok(response); // Return 200 OK with token
 
         } catch (Exception e) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
+            // If authentication fails (e.g., BadCredentialsException,
+            // UsernameNotFoundException):
+            // Log the exception server-side for debugging
+            // logger.error("Authentication failed for card number {}: {}", cardNumber,
+            // e.getMessage()); // Assuming you have a logger
+
+            response.put("message", "Invalid credentials or user not found"); // More informative, but still secure
+                                                                              // message
+            // Return 401 Unauthorized with a JSON body containing the error message
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
         }
     }
 
@@ -117,6 +133,7 @@ public class AuthController {
         Client client = Client.builder()
                 .clientId(cardNumber) // Use card number as client ID
                 .userCardNumber(cardNumber)
+                .Activated(false)
                 .firstName(clientRequest.getFirstName())
                 .lastName(clientRequest.getLastName())
                 .phoneNumber(clientRequest.getPhoneNumber())
@@ -131,9 +148,8 @@ public class AuthController {
         // Inside the register method
         Account account = accountService.createAndAttachAccount(
                 client.getClientId(),
-                null, // Default account name
-                "Chequing" // Default account type
-        );
+                "",
+                "Chequing");
 
         Map<String, String> response = new HashMap<>();
         response.put("message", "Registration successful");
@@ -159,8 +175,9 @@ public class AuthController {
                     "cardNumber", user.getCardNumber(),
                     "role", user.getRole(),
                     "isAdmin", "ADMIN".equals(user.getRole()),
-                    "firstName", client.getFirstName()));
-
+                    "firstName", client.getFirstName(),
+                    "activated", client.getActivated() // Add the activated status here
+            ));
         } catch (Exception e) {
             response.put("isAuthenticated", false);
             response.put("error", e.getMessage());
@@ -177,9 +194,5 @@ public class AuthController {
         }
         cardNumber.append("8008");
         return cardNumber.toString();
-    }
-
-    private String generateAccountId() {
-        return String.valueOf(System.currentTimeMillis());
     }
 }

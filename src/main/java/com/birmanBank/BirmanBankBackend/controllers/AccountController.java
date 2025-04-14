@@ -1,4 +1,4 @@
-package com.birmanBank.BirmanBankBackend.controllers.ClientControllers;
+package com.birmanBank.BirmanBankBackend.controllers;
 
 import com.birmanBank.BirmanBankBackend.controllers.AccountDetailsDto;
 import com.birmanBank.BirmanBankBackend.models.Account;
@@ -121,5 +121,22 @@ public class AccountController {
         Account createdAccount = accountService.createAndAttachAccount(client.getClientId(), accountName, accountType);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(createdAccount);
+    }
+
+    @DeleteMapping("/{accountId}/delete")
+    public ResponseEntity<Void> deleteAccount(
+            @PathVariable String accountId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        // Validate the authenticated user
+        String cardNumber = authUserDetailsService.validateAuthenticatedUser(userDetails);
+
+        // Get the authenticated client
+        Client client = authUserDetailsService.getAuthenticatedClient(cardNumber);
+
+        // Delete the account
+        accountService.deleteAccount(accountId, client.getClientId());
+
+        return ResponseEntity.noContent().build(); // Return 204 No Content on success
     }
 }

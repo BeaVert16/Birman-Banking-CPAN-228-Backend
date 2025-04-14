@@ -1,4 +1,4 @@
-package com.birmanBank.BirmanBankBackend.controllers.ClientControllers;
+package com.birmanBank.BirmanBankBackend.controllers;
 
 import com.birmanBank.BirmanBankBackend.services.AuthenticationService;
 import com.birmanBank.BirmanBankBackend.services.ClientServices.TransactionService;
@@ -29,10 +29,7 @@ public class TransactionController {
             @RequestBody Map<String, Object> transferRequest,
             @AuthenticationPrincipal UserDetails userDetails) {
 
-        // Extract authenticated client ID from the token
         String authenticatedClientId = authenticationService.validateAuthenticatedUser(userDetails);
-
-        // Extract data from the request
         String senderAccountId = (String) transferRequest.get("senderAccountId");
         String recipientPhoneNumber = (String) transferRequest.get("recipientPhoneNumber");
 
@@ -45,7 +42,6 @@ public class TransactionController {
         }
 
         try {
-            // Use authenticated client ID directly
             transactionService.transferMoney(authenticatedClientId, senderAccountId, recipientPhoneNumber, amount);
             return ResponseEntity.ok(Map.of("message", "Transfer successful"));
         } catch (ResponseStatusException e) {
@@ -86,6 +82,46 @@ public class TransactionController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "An unexpected error occurred"));
+        }
+    }
+
+    @PostMapping("/internal-transfer")
+    public ResponseEntity<Map<String, String>> internalTransfer(
+            @RequestBody Map<String, Object> transferRequest,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        // Extract authenticated client ID from the token
+        String authenticatedClientId = authenticationService.validateAuthenticatedUser(userDetails);
+
+        // Extract data from the request
+        String fromAccountId = (String) transferRequest.get("fromAccountId");
+        String toAccountId = (String) transferRequest.get("toAccountId");
+
+        BigDecimal amount;
+        try {
+            amount = new BigDecimal(transferRequest.get("amount").toString());
+        } catch (NumberFormatException | NullPointerException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", "Invalid or missing amount format"));
+        }
+
+        if (fromAccountId == null || toAccountId == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", "Missing fromAccountId or toAccountId"));
+        }
+
+        try {
+            // Call the service to handle the internal transfer
+            transactionService.internalTransfer(authenticatedClientId, fromAccountId, toAccountId, amount);
+            return ResponseEntity.ok(Map.of("message", "Internal transfer successful"));
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode())
+                    .body(Map.of("error", e.getReason()));
+        } catch (Exception e) {
+            // Log the exception details for debugging
+            // logger.error("Unexpected error during internal transfer", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "An unexpected error occurred during the transfer"));
         }
     }
 }
