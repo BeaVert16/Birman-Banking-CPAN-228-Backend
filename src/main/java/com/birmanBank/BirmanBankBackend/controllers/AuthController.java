@@ -125,7 +125,7 @@ public class AuthController {
         Client client = Client.builder()
                 .clientId(cardNumber) // Use card number as client ID
                 .userCardNumber(cardNumber)
-                .Activated(false)
+                .Activated(true)
                 .firstName(clientRequest.getFirstName())
                 .lastName(clientRequest.getLastName())
                 .phoneNumber(clientRequest.getPhoneNumber())

@@ -1,8 +1,8 @@
 spring.application.name=BirmanBankBackend
 
 # spring.config.import=optional:file:./application.properties.template
-spring.data.mongodb.uri= 
+spring.data.mongodb.uri=
 spring.data.mongodb.database=
 
 # openssl rand -base64 32
-jwt.secret =
+jwt.secret=
