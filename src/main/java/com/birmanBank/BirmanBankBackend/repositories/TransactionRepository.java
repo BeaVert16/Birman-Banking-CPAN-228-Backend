@@ -1,4 +1,4 @@
-package com.birmanBank.BirmanBankBackend.repositories.ClientRepositories;
+package com.birmanBank.BirmanBankBackend.repositories;
 
 import java.time.LocalDateTime;
 
