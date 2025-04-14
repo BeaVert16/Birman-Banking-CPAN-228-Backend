@@ -91,10 +91,6 @@ public class AuthController {
         }
 
         Client clientRequest = new Client();
-        clientRequest.setFirstName((String) requestBody.get("firstName"));
-        clientRequest.setLastName((String) requestBody.get("lastName"));
-        clientRequest.setPhoneNumber((String) requestBody.get("phoneNumber"));
-        clientRequest.setEmail((String) requestBody.get("email"));
 
         Address address = Address.builder()
                 .address((String) requestBody.get("address"))
