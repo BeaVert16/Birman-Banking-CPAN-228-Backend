@@ -15,6 +15,7 @@ public class Client {
     @Id
     private String clientId; // Unique identifier for the client
     private String userCardNumber; // Card number assigned to the client
+    private Boolean Activated;
 
     private String firstName;
     private String lastName;
