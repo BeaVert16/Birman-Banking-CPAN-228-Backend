@@ -7,6 +7,15 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.domain.Page;
 
+
+/* 
+* this class is used to send account details and transactions to the client
+* it contains the account and a page of transactions
+* the page of transactions is used to implement pagination
+* the account is used to display account details
+*/
+
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

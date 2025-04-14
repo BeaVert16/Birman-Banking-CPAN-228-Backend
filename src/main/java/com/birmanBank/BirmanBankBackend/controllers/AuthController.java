@@ -27,10 +27,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
+/**
+ * AuthController handles authentication and registration requests.
+ * It provides endpoints for user login, registration, and session validation.
+ */
+
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
+    //-----------------------Constructors----------------------//
     private final AuthenticationManager authenticationManager;
     private final AuthenticationService authenticationService;
     private final UserRepository userRepository;
@@ -51,30 +57,39 @@ public class AuthController {
         this.accountService = accountService;
         this.messageService = messageService;
     }
+    // ---------------------------------------------------------------//
 
+    // endpoint to handle user login
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> loginRequest) {
-        String cardNumber = loginRequest.get("cardNumber");
-        String password = loginRequest.get("password");
-        Map<String, Object> response = new HashMap<>();
+        String cardNumber = loginRequest.get("cardNumber"); // get the card number from the request
+        String password = loginRequest.get("password"); // get the password from the request
+        Map<String, Object> response = new HashMap<>(); // create a response map
 
+        // validate the input
         if (cardNumber == null || cardNumber.trim().isEmpty() || password == null || password.isEmpty()) {
             response.put("message", "Card number and password are required");
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
         }
 
         try {
+            // authenticate the user using the provided credentials
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(cardNumber, password));
 
+            // generate a JWT token for the authenticated user
             String token = authenticationService.generateToken(authentication.getName());
+
+            // fetch the user from the database using the card number
             User user = userRepository.findByCardNumber(cardNumber)
                     .orElseThrow(() -> new RuntimeException("User not found"));
-
+            
+            // debugging stuff
             response.put("message", "Login successful");
             response.put("token", token);
-            response.put("role", user.getRole()); // Include the user's role in the response
+            response.put("role", user.getRole());
             System.out.println("User found: " + response);
+
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
@@ -83,15 +98,23 @@ public class AuthController {
         }
     }
 
+    // endpoint to handle user registration
     @PostMapping("/register")
     public Map<String, String> register(@RequestBody Map<String, Object> requestBody) {
-        String password = (String) requestBody.get("password");
+        String password = (String) requestBody.get("password"); // get the password from the request body
+
+        // validate the input
         if (password == null || password.trim().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password cannot be null or empty");
         }
 
-        Client clientRequest = new Client();
-
+        Client clientRequest = new Client(); // create a new client object
+        clientRequest.setFirstName((String) requestBody.get("firstName"));
+        clientRequest.setLastName((String) requestBody.get("lastName"));
+        clientRequest.setPhoneNumber((String) requestBody.get("phoneNumber"));
+        clientRequest.setEmail((String) requestBody.get("email"));
+        
+        // extract client details from the request body and builds the address object
         Address address = Address.builder()
                 .address((String) requestBody.get("address"))
                 .city((String) requestBody.get("city"))
@@ -105,14 +128,16 @@ public class AuthController {
         clientRequest.setSin((String) requestBody.get("sin"));
         clientRequest.setDateOfBirth((String) requestBody.get("dateOfBirth"));
 
-        String cardNumber = generateCardNumber();
-        String encodedPassword = passwordEncoder.encode(password);
+        String cardNumber = authenticationService.generateCardNumber(); // generate a unique card number
+        String encodedPassword = passwordEncoder.encode(password); // encode the password
 
-        // Ensure generated card number is unique
+        // check if the card number already exists in the database
+        // if it does it generates a new one
         while (userRepository.findByCardNumber(cardNumber).isPresent()) {
-            cardNumber = generateCardNumber();
+            cardNumber = authenticationService.generateCardNumber();
         }
 
+        // create a new user and client object and save them to the database
         User user = User.builder()
                 .cardNumber(cardNumber)
                 .password(encodedPassword)
@@ -122,8 +147,9 @@ public class AuthController {
                 .build();
         userRepository.save(user);
 
+        // builds and saves the client object
         Client client = Client.builder()
-                .clientId(cardNumber) // Use card number as client ID
+                .clientId(cardNumber)
                 .userCardNumber(cardNumber)
                 .Activated(true)
                 .firstName(clientRequest.getFirstName())
@@ -137,7 +163,7 @@ public class AuthController {
                 .build();
         clientRepository.save(client);
 
-        // Inside the register method
+        // create an account for the new client
         Account account = accountService.createAndAttachAccount(
                 client.getClientId(),
                 "",
@@ -147,37 +173,38 @@ public class AuthController {
         response.put("message", "Registration successful");
         response.put("cardNumber", cardNumber); // cardNumber is the same as client.getClientId() here
 
-        List<User> admins = userRepository.findAll().stream()
-                .filter(adminUser -> "ADMIN".equalsIgnoreCase(adminUser.getRole()))
-                .toList();
+        // List<User> admins = userRepository.findAll().stream()
+        //         .filter(adminUser -> "ADMIN".equalsIgnoreCase(adminUser.getRole()))
+        //         .toList();
 
-        // Use sendRegistrationMessage to include the target client's ID
-        for (User admin : admins) {
-            messageService.sendRegistrationMessage( // Changed from sendMessage
-                    admin.getCardNumber(), // recipientId (admin)
-                    "New User Registration", // subject
-                    "A new user with card number " + client.getClientId()
-                            + " has registered and is awaiting activation.", // body
-                    client.getClientId() // targetClientId (the new client)
-            );
-        }
+        // for (User admin : admins) {
+        //     messageService.sendRegistrationMessage( // Changed from sendMessage
+        //             admin.getCardNumber(),
+        //             "New User Registration",
+        //             "A new user with card number " + client.getClientId()
+        //                     + " has registered and is awaiting activation.",
+        //             client.getClientId()
+        //     );
+        // }
 
         return response;
     }
 
+    // endpoint to check if the user is authenticated
     @GetMapping("/session-check")
     public ResponseEntity<?> sessionCheck(HttpServletRequest request) {
         Map<String, Object> response = new HashMap<>();
         try {
-            // Validate and extract the username (card number) from the token
+            // validate and extract the username (card number) from the token
             String authorizationHeader = request.getHeader("Authorization");
             String cardNumber = authenticationService.validateAndExtractUsername(authorizationHeader);
 
-            // Fetch the user from the User table
+            // fetch the user from the User table
             User user = userRepository.findByCardNumber(cardNumber)
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
-            // Prepare the response for admin users
+            // check if the user is an admin
+            // if the user is an admin it defines the response for the admin
             if ("ADMIN".equalsIgnoreCase(user.getRole())) {
                 response.put("isAuthenticated", true);
                 response.put("user", Map.of(
@@ -185,7 +212,8 @@ public class AuthController {
                         "role", user.getRole(),
                         "isAdmin", true));
             } else {
-                // Fetch the client details for non-admin users
+                // fetch the client from the Client table
+                // if the user is not an admin it defines the response for the client
                 Client client = clientRepository.findByUserCardNumber(user.getCardNumber())
                         .orElseThrow(() -> new RuntimeException("Client not found"));
 
@@ -202,17 +230,17 @@ public class AuthController {
             response.put("error", e.getMessage());
         }
 
-        System.out.println("Session check response: " + response);
+        System.out.println("Session check response: " + response); //debugging stuff
         return ResponseEntity.ok(response);
     }
 
-    private String generateCardNumber() {
-        Random random = new Random();
-        StringBuilder cardNumber = new StringBuilder();
-        for (int i = 0; i < 12; i++) {
-            cardNumber.append(random.nextInt(10));
-        }
-        cardNumber.append("8008");
-        return cardNumber.toString();
-    }
+    // private String generateCardNumber() {
+    //     Random random = new Random();
+    //     StringBuilder cardNumber = new StringBuilder();
+    //     for (int i = 0; i < 12; i++) {
+    //         cardNumber.append(random.nextInt(10));
+    //     }
+    //     cardNumber.append("8008");
+    //     return cardNumber.toString();
+    // }
 }

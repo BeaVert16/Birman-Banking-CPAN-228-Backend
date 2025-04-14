@@ -10,6 +10,7 @@ import com.birmanBank.BirmanBankBackend.utils.JwtUtil;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.GrantedAuthority;
@@ -145,5 +146,15 @@ public class AuthenticationService implements UserDetailsService {
         if (!client.getUserCardNumber().equals(cardNumber)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Unauthorized access to this phone number");
         }
+    }
+
+    public String generateCardNumber() {
+        Random random = new Random();
+        StringBuilder cardNumber = new StringBuilder();
+        for (int i = 0; i < 12; i++) {
+            cardNumber.append(random.nextInt(10));
+        }
+        cardNumber.append("8008");
+        return cardNumber.toString();
     }
 }
