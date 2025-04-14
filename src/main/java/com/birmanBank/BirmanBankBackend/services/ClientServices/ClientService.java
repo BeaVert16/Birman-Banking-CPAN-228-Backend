@@ -10,7 +10,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import com.birmanBank.BirmanBankBackend.models.Account;
 import com.birmanBank.BirmanBankBackend.models.Client;
 import com.birmanBank.BirmanBankBackend.models.User;
-import com.birmanBank.BirmanBankBackend.repositories.ClientRepositories.ClientRepository;
+import com.birmanBank.BirmanBankBackend.repositories.ClientRepository;
 import com.birmanBank.BirmanBankBackend.repositories.UserRepository; 
 
 import java.math.BigDecimal;
@@ -132,13 +132,13 @@ public class ClientService {
         return String.valueOf(System.currentTimeMillis());
     }
 
-    // //update a client
-    // public Client updateClient(Client client) {
-    // return clientRepository.save(client);
-    // }
+    //update a client
+    public Client updateClient(Client client) {
+    return clientRepository.save(client);
+    }
 
-    // // delete a client by its ID
-    // public void deleteClient(String clientId) {
-    // clientRepository.deleteById(clientId);
-    // }
+    // delete a client by its ID
+    public void deleteClient(String clientId) {
+    clientRepository.deleteById(clientId);
+    }
 }

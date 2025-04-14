@@ -3,7 +3,7 @@ package com.birmanBank.BirmanBankBackend.services;
 import com.birmanBank.BirmanBankBackend.models.Account;
 import com.birmanBank.BirmanBankBackend.models.Client;
 import com.birmanBank.BirmanBankBackend.models.User;
-import com.birmanBank.BirmanBankBackend.repositories.ClientRepositories.ClientRepository;
+import com.birmanBank.BirmanBankBackend.repositories.ClientRepository;
 import com.birmanBank.BirmanBankBackend.repositories.UserRepository;
 import com.birmanBank.BirmanBankBackend.services.ClientServices.AccountService;
 import org.springframework.http.HttpStatus;

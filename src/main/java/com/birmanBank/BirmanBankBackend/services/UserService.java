@@ -34,13 +34,13 @@ public class UserService {
         return userRepository.findAll();
     }
     
-    // //update a user
-    // public User updateUser(User user) {
-    //     return userRepository.save(user);
-    // }
+    //update a user
+    public User updateUser(User user) {
+        return userRepository.save(user);
+    }
     
-    // //delete a user by card number
-    // public void deleteUser(String cardNumber) {
-    //     userRepository.deleteById(cardNumber);
-    // }
+    //delete a user by card number
+    public void deleteUser(String cardNumber) {
+        userRepository.deleteById(cardNumber);
+    }
 }

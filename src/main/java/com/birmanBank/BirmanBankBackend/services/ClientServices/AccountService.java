@@ -6,9 +6,8 @@ import org.springframework.http.HttpStatus;
 
 import com.birmanBank.BirmanBankBackend.models.Account;
 import com.birmanBank.BirmanBankBackend.models.Client;
-
-import com.birmanBank.BirmanBankBackend.repositories.ClientRepositories.AccountRepository;
-import com.birmanBank.BirmanBankBackend.repositories.ClientRepositories.ClientRepository;
+import com.birmanBank.BirmanBankBackend.repositories.AccountRepository;
+import com.birmanBank.BirmanBankBackend.repositories.ClientRepository;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -105,13 +104,49 @@ public class AccountService {
         return String.valueOf(System.currentTimeMillis());
     }
 
-    // //update an account
-    // public Account updateAccount(Account account) {
-    // return accountRepository.save(account);
-    // }
+    public void deleteAccount(String accountId, String clientId) {
+        // Retrieve the account by ID
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found."));
 
-    // //delete an account by its ID
-    // public void deleteAccount(String accountId) {
-    // accountRepository.deleteById(accountId);
-    // }
+        // Ensure the account belongs to the client
+        if (!account.getClientId().equals(clientId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "You do not have permission to delete this account.");
+        }
+
+        // Retrieve all accounts for the client
+        List<Account> clientAccounts = accountRepository.findByClientId(clientId);
+
+        // Check if the client has only one account
+        if (clientAccounts.size() == 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "You cannot delete your only account.");
+        }
+
+        // Check if the account is the original account (e.g., the first account
+        // created)
+        Account originalAccount = clientAccounts.stream()
+                .min((a1, a2) -> a1.getCreatedAt().compareTo(a2.getCreatedAt()))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                        "Unable to determine the original account."));
+
+        if (originalAccount.getAccountId().equals(accountId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "You cannot delete the original account created with your profile.");
+        }
+
+        // Delete the account
+        accountRepository.delete(account);
+    }
+
+    //update an account
+    public Account updateAccount(Account account) {
+    return accountRepository.save(account);
+    }
+
+    //delete an account by its ID
+    public void deleteAccount(String accountId) {
+    accountRepository.deleteById(accountId);
+    }
 }

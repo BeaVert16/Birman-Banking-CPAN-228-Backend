@@ -45,6 +45,9 @@ public class SecurityConfig {
                 .cors(withDefaults())
                 .authorizeHttpRequests(authz -> authz // defines authorization rules
                         .requestMatchers("/api/auth/**").permitAll() // allow login and register endpoints
+                        .requestMatchers("/api/clients/inbox").authenticated() // Allow inbox access for all authenticated users
+                        .requestMatchers("/api/accounts/**", "/api/transfer/**", "/api/deposit/**", "/api/withdraw/**", "/api/settings/**").hasAnyAuthority("ROLE_ACTIVATED","ROLE_ADMIN" ) // require activation or admin role
+                        .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
                         .anyRequest().authenticated())
                 // disable session management
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
