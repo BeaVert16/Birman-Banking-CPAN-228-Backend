@@ -14,7 +14,6 @@ import com.birmanBank.BirmanBankBackend.services.MessageService;
 
 import com.birmanBank.BirmanBankBackend.repositories.UserRepository;
 
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -199,38 +198,29 @@ public class AdminController {
         return ResponseEntity.status(HttpStatus.CREATED).body(savedAdmin);
     }
 
-    @PutMapping("/users/{cardNumber}/status")
-    public ResponseEntity<String> updateUserStatus(@PathVariable String cardNumber,
-            @RequestBody Map<String, String> request) {
-        Optional<User> userOptional = userService.getUserByCardNumber(cardNumber);
-
-        if (userOptional.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
+    @PostMapping("/inbox/{messageId}/{action}")
+    public ResponseEntity<String> processInboxMessageAction(
+            @PathVariable String messageId, // Changed from Long to String
+            @PathVariable String action) {
+        Optional<InboxMessage> messageOptional = messageService.getMessageById(messageId);
+    
+        if (messageOptional.isEmpty()) {
+            return ResponseEntity.status(404).body("Message not found");
         }
-
-        User user = userOptional.get();
-        String status = request.get("status"); // "APPROVED" or "DENIED"
-        String messageBody;
-
-        if ("APPROVED".equalsIgnoreCase(status)) {
-            user.setRole("ACTIVATED");
-            messageBody = "Your account has been approved by the admin. You can now access all features.";
-        } else if ("DENIED".equalsIgnoreCase(status)) {
-            user.setRole("DENIED");
-            messageBody = "Your account has been denied by the admin. Please contact support for more details.";
+    
+        InboxMessage message = messageOptional.get();
+    
+        if ("accept".equalsIgnoreCase(action)) {
+            message.setStatus("ACCEPTED");
+        } else if ("deny".equalsIgnoreCase(action)) {
+            message.setStatus("DENIED");
         } else {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid status value");
+            return ResponseEntity.status(400).body("Invalid action");
         }
-
-        user.setUpdatedAt(LocalDateTime.now());
-        userRepository.save(user);
-
-        // Send a message to the user
-        messageService.sendMessage(
-                user.getCardNumber(),
-                "Account Status Update",
-                messageBody);
-
-        return ResponseEntity.ok("User status updated successfully");
+    
+        message.setUpdatedAt(LocalDateTime.now());
+        messageService.saveMessage(message);
+    
+        return ResponseEntity.ok("Message " + action + "ed successfully");
     }
 }

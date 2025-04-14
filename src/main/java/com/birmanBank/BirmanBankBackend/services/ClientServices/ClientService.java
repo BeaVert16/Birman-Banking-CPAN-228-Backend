@@ -11,7 +11,7 @@ import com.birmanBank.BirmanBankBackend.models.Account;
 import com.birmanBank.BirmanBankBackend.models.Client;
 import com.birmanBank.BirmanBankBackend.models.User;
 import com.birmanBank.BirmanBankBackend.repositories.ClientRepository;
-import com.birmanBank.BirmanBankBackend.repositories.UserRepository; 
+import com.birmanBank.BirmanBankBackend.repositories.UserRepository;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -42,9 +42,17 @@ public class ClientService {
         return clientRepository.save(client);
     }
 
-    // retrieve a client by its ID
     public Optional<Client> getClientById(String clientId) {
         return clientRepository.findById(clientId);
+    }
+
+    public Client updateClient(String clientId, Client updatedClient) {
+        return clientRepository.save(updatedClient);
+    }
+
+    // update a client
+    public Client updateClient(Client client) {
+        return clientRepository.save(client);
     }
 
     // retrieve a client by its user card number
@@ -63,7 +71,7 @@ public class ClientService {
     }
 
     // New Registration Method
-    @Transactional // Ensure atomicity
+    @Transactional
     public User registerClientAndUser(Client clientRequest, String password) {
         if (password == null || password.trim().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password cannot be null or empty");
@@ -132,13 +140,8 @@ public class ClientService {
         return String.valueOf(System.currentTimeMillis());
     }
 
-    //update a client
-    public Client updateClient(Client client) {
-    return clientRepository.save(client);
-    }
-
     // delete a client by its ID
     public void deleteClient(String clientId) {
-    clientRepository.deleteById(clientId);
+        clientRepository.deleteById(clientId);
     }
 }

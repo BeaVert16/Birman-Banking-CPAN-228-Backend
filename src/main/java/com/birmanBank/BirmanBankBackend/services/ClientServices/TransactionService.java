@@ -121,7 +121,7 @@ public class TransactionService {
         return transactionRepository.findAll();
     }
 
-    @Transactional // Ensure atomicity
+    @Transactional
     public void internalTransfer(String clientId, String fromAccountId, String toAccountId, BigDecimal amount) {
         logger.info("Initiating internal transfer: clientId={}, fromAccountId={}, toAccountId={}, amount={}",
                 clientId, fromAccountId, toAccountId, amount);

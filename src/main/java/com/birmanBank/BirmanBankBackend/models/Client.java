@@ -15,7 +15,7 @@ public class Client {
     @Id
     private String clientId; // Unique identifier for the client
     private String userCardNumber; // Card number assigned to the client
-    private Boolean Activated;
+    private Boolean Activated = true;
 
     private String firstName;
     private String lastName;
@@ -27,4 +27,5 @@ public class Client {
 
     // Log time for admin and client-side purposes
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }

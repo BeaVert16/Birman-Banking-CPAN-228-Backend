@@ -2,7 +2,6 @@ package com.birmanBank.BirmanBankBackend.controllers;
 
 import com.birmanBank.BirmanBankBackend.models.Account;
 import com.birmanBank.BirmanBankBackend.models.Client;
-import com.birmanBank.BirmanBankBackend.models.InboxMessage;
 import com.birmanBank.BirmanBankBackend.models.User;
 import com.birmanBank.BirmanBankBackend.models.Address;
 import com.birmanBank.BirmanBankBackend.repositories.ClientRepository;
@@ -150,17 +149,21 @@ public class AuthController {
 
         Map<String, String> response = new HashMap<>();
         response.put("message", "Registration successful");
-        response.put("cardNumber", cardNumber);
+        response.put("cardNumber", cardNumber); // cardNumber is the same as client.getClientId() here
 
         List<User> admins = userRepository.findAll().stream()
                 .filter(adminUser -> "ADMIN".equalsIgnoreCase(adminUser.getRole()))
                 .toList();
 
+        // Use sendRegistrationMessage to include the target client's ID
         for (User admin : admins) {
-            messageService.sendMessage(
-                    admin.getCardNumber(),
-                    "New User Registration",
-                    "A new user with card number " + cardNumber + " has registered and is awaiting activation.");
+            messageService.sendRegistrationMessage( // Changed from sendMessage
+                    admin.getCardNumber(), // recipientId (admin)
+                    "New User Registration", // subject
+                    "A new user with card number " + client.getClientId()
+                            + " has registered and is awaiting activation.", // body
+                    client.getClientId() // targetClientId (the new client)
+            );
         }
 
         return response;
