@@ -42,50 +42,52 @@ public class ClientService {
         return clientRepository.save(client);
     }
 
+    // gets a client by its ID
     public Optional<Client> getClientById(String clientId) {
         return clientRepository.findById(clientId);
     }
 
-    public Client updateClient(String clientId, Client updatedClient) {
-        return clientRepository.save(updatedClient);
-    }
-
-    // update a client
+    // updates a client by saving the client object - an overloaded version of updateClient
     public Client updateClient(Client client) {
         return clientRepository.save(client);
     }
 
-    // retrieve a client by its user card number
+    // gets a client using their user card number
     public Optional<Client> getClientByUserCardNumber(String userCardNumber) {
         return clientRepository.findByUserCardNumber(userCardNumber);
     }
 
-    // retrieve a client by its phone number
+    // gets a client by its phone number
     public Optional<Client> getClientByPhoneNumber(String phoneNumber) {
         return clientRepository.findByPhoneNumber(phoneNumber);
     }
 
-    // retrieve all clients
+    // gets all list of clients
     public List<Client> getAllClients() {
         return clientRepository.findAll();
     }
 
     // New Registration Method
-    @Transactional
+    // https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/annotations.html
+    // https://www.baeldung.com/transaction-configuration-with-jpa-and-spring
+    // transactional so that if any of the operations fail the entire transaction is rolled back
+    @Transactional 
     public User registerClientAndUser(Client clientRequest, String password) {
+
+        // registers a new client and associated user with the provided details and password.
         if (password == null || password.trim().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password cannot be null or empty");
         }
-        // Consider adding more validation for clientRequest fields here
 
         String cardNumber = generateCardNumber();
         String encodedPassword = passwordEncoder.encode(password);
 
-        // Ensure generated card number is unique
+        // make sure the new card number is unique
         while (userRepository.findByCardNumber(cardNumber).isPresent()) {
             cardNumber = generateCardNumber();
         }
 
+        // builds and saves a new user object with client role
         User user = User.builder()
                 .cardNumber(cardNumber)
                 .password(encodedPassword)
@@ -95,6 +97,7 @@ public class ClientService {
                 .build();
         userRepository.save(user);
 
+        // builds and saves a new client using information from the request abnd the generated card number
         Client client = Client.builder()
                 .clientId(cardNumber) // Use card number as client ID
                 .userCardNumber(cardNumber)
@@ -109,10 +112,11 @@ public class ClientService {
                 .build();
         clientRepository.save(client);
 
+        // creates a new chequing account for the client
         Account account = Account.builder()
                 .accountId(generateAccountId())
                 .clientId(client.getClientId())
-                .accountType("Chequing") // Default account type
+                .accountType("Chequing") // default account type
                 .balance(BigDecimal.ZERO)
                 .status("ACTIVE")
                 .createdAt(LocalDateTime.now())
@@ -120,23 +124,22 @@ public class ClientService {
                 .build();
         accountService.createAccount(account);
 
-        return user; // Return the created user (contains the card number)
+        return user;
     }
 
-    // Helper method moved from AuthController
+    // generates a random 12 digits number and appends "8008" to it to make it a proper 16 digits card number
     private String generateCardNumber() {
         Random random = new Random();
         StringBuilder cardNumber = new StringBuilder();
         for (int i = 0; i < 12; i++) {
             cardNumber.append(random.nextInt(10));
         }
-        cardNumber.append("8008"); // Consider making this suffix configurable or more robust
+        cardNumber.append("8008"); // apends "8008" to the end of the card number
         return cardNumber.toString();
     }
 
-    // Helper method moved from AuthController
+    // generates a unique account ID using current time in milliseconds
     private String generateAccountId() {
-        // Consider a more robust unique ID generation strategy (e.g., UUID)
         return String.valueOf(System.currentTimeMillis());
     }
 

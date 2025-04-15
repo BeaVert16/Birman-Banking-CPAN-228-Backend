@@ -14,10 +14,16 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+/*
+* ClientController handles client-related operations
+* fetching client details, inbox messages, etc.
+*/
+
 @RestController
 @RequestMapping("/api/clients")
 public class ClientController {
 
+    //-----------------------Constructors----------------------//
     private final ClientService clientService;
     private final AuthenticationService authenticationService;
     private final InboxMessageRepository inboxMessageRepository;
@@ -28,20 +34,25 @@ public class ClientController {
         this.authenticationService = authenticationService;
         this.inboxMessageRepository = inboxMessageRepository;
     }
+    // ---------------------------------------------------------------//
 
+    // ednpoint to fetch client details
+    // currently not used - may be moved to account controller for fetching account details for client 
     @GetMapping("/me")
     public Client getLoggedInClient(@AuthenticationPrincipal UserDetails userDetails) {
-        // Validate the authenticated user
+        // validate the authenticated user
         String cardNumber = authenticationService.validateAuthenticatedUser(userDetails);
 
-        // Fetch the client details using the card number
+        // fetch the client details using the card number
         return authenticationService.getAuthenticatedClient(cardNumber);
     }
 
+    // endpoint to fetch inbox messages for the logged-in client
     @GetMapping("/inbox")
     public ResponseEntity<List<InboxMessage>> getInboxMessages(@AuthenticationPrincipal UserDetails userDetails) {
-        String cardNumber = authenticationService.validateAuthenticatedUser(userDetails);
-        List<InboxMessage> messages = inboxMessageRepository.findByRecipientId(cardNumber);
+
+        String cardNumber = authenticationService.validateAuthenticatedUser(userDetails); // validate the authenticated user
+        List<InboxMessage> messages = inboxMessageRepository.findByRecipientId(cardNumber); // fetch inbox messages for the authenticated user
         return ResponseEntity.ok(messages);
     }
 }

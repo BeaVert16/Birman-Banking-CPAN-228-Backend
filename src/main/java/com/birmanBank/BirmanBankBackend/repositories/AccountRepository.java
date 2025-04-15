@@ -12,7 +12,7 @@ public interface AccountRepository extends MongoRepository<Account, String> {
     // will return a list of accounts associated with the given client ID
     List<Account> findByClientId(String clientId);
 
-    // Custom query to find an account by the client's phone number
+    // custom query to find an account by the client's phone number
     @Query("{ 'client.phoneNumber': ?0 }")
     List<Account> findByClientPhoneNumber(String phoneNumber);
 }

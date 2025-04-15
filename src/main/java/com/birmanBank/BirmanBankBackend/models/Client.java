@@ -13,8 +13,8 @@ import java.time.LocalDateTime;
 @Document(collection = "clients")
 public class Client {
     @Id
-    private String clientId; // Unique identifier for the client
-    private String userCardNumber; // Card number assigned to the client
+    private String clientId;
+    private String userCardNumber;
     private Boolean Activated;
 
     private String firstName;
@@ -25,7 +25,6 @@ public class Client {
     private String sin;
     private String dateOfBirth;
 
-    // Log time for admin and client-side purposes
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

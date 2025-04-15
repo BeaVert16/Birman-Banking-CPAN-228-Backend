@@ -24,6 +24,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class AuthenticationService implements UserDetailsService {
 
+    // -----------------------Constructors----------------------//
     private final UserRepository userRepository;
     private final AccountRepository accountRepository;
     private final ClientRepository clientRepository;
@@ -36,29 +37,41 @@ public class AuthenticationService implements UserDetailsService {
         this.clientRepository = clientRepository;
         this.jwtUtil = jwtUtil;
     }
+    // ---------------------------------------------------------------//
 
+    // checks if the phone number is unique
+    public boolean isPhoneNumberUnique(String phoneNumber) {
+
+        boolean exists = clientRepository.findByPhoneNumber(phoneNumber).isPresent();
+        if (exists) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phone number already in use");
+        }
+        return true;
+    }
+
+    // loads a user by there card num for spring security
     @Override
     public UserDetails loadUserByUsername(String cardNumber) throws UsernameNotFoundException {
-        // Fetch the user from the User table
+        // get the user by card number
         User appUser = userRepository.findByCardNumber(cardNumber)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with card number: " + cardNumber));
 
-        // Build the list of authorities
+        // build the list of authorities
         List<GrantedAuthority> authorities = new ArrayList<>();
 
-        // Add the primary role (e.g., "ADMIN", "CLIENT")
+        // add users main role to the list of authorities
         if (appUser.getRole() != null && !appUser.getRole().isEmpty()) {
             authorities.add(new SimpleGrantedAuthority("ROLE_" + appUser.getRole().toUpperCase()));
         }
 
-        // If the user is a client, fetch the Client details and add activation-based
+        // if the user is a client, fetch the Client details and add activation-based
         // authorities
         if ("CLIENT".equalsIgnoreCase(appUser.getRole())) {
             Client client = clientRepository.findByUserCardNumber(appUser.getCardNumber())
                     .orElseThrow(() -> new UsernameNotFoundException(
                             "Client details not found for card number: " + cardNumber));
 
-            // Add authority based on activation status
+            // add authority based on activation status
             if (client.getActivated() != null && client.getActivated()) {
                 authorities.add(new SimpleGrantedAuthority("ROLE_ACTIVATED"));
             } else {
@@ -66,7 +79,6 @@ public class AuthenticationService implements UserDetailsService {
             }
         }
 
-        // Return the UserDetails object with the constructed authorities
         return new org.springframework.security.core.userdetails.User(
                 appUser.getCardNumber(), // Principal identifier
                 appUser.getPassword(), // Encoded password
@@ -87,74 +99,63 @@ public class AuthenticationService implements UserDetailsService {
         }
     }
 
+    // extracts username (card number) from jwt token in authorization header
     public String validateAndExtractUsername(String authorizationHeader) {
-        // Consider adding logging here for debugging token issues
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-            // Returning null might be better than throwing here, let the filter handle it
-            // throw new IllegalArgumentException("Invalid Authorization header");
-            return null;
+            return null; // return null if header is missing or malformed
         }
-        String token = authorizationHeader.substring(7);
-        String username = null;
+
+        String token = authorizationHeader.substring(7); // remove "Bearer " prefix
         try {
-            // Extract username first
-            username = jwtUtil.extractUsername(token);
-            // Then validate (validation might check expiry, signature etc.)
+            String username = jwtUtil.extractUsername(token); // extract username from token
+
+            // validate token (checks signature, expiration, etc.)
             if (!jwtUtil.validateToken(token)) {
-                throw new RuntimeException("Invalid token");
+                return null; // return null if token is invalid
             }
+
+            return username; // return valid extracted username
         } catch (Exception e) {
-            // Log the exception
-            System.err.println("Token validation/extraction failed: " + e.getMessage());
-            // It's often better to return null and let the filter deny access
-            // than to throw an exception that might expose internal details.
-            return null;
-            // throw new RuntimeException("Invalid or expired token", e);
+            System.err.println("token validation/extraction failed: " + e.getMessage());
+            return null; // return null if extraction or validation fails
         }
-        return username; // Return extracted username if valid
     }
 
+    // returns authenticated user's card number from userdetails
     public String getAuthenticatedCardNumber(UserDetails userDetails) {
         if (userDetails == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not authenticated");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "user not authenticated");
         }
-        return userDetails.getUsername();
+        return userDetails.getUsername(); // spring security uses username for card number
     }
 
-    // Modified generateToken to potentially use UserDetails for claims if needed
+    // generates a jwt token using the user's card number
     public String generateToken(String username) {
-        // Pass UserDetails or just username depending on your JwtUtil implementation
-        return jwtUtil.generateToken(username); // Or jwtUtil.generateToken(username);
+        return jwtUtil.generateToken(username); // delegate to jwt util
     }
 
+    // validates that the user is authenticated and returns their card number
     public String validateAuthenticatedUser(UserDetails userDetails) {
         if (userDetails == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not authenticated");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "user not authenticated");
         }
         return userDetails.getUsername();
     }
 
+    // fetches the client associated with the given card number
     public Client getAuthenticatedClient(String cardNumber) {
         return clientRepository.findByUserCardNumber(cardNumber)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Client not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "client not found"));
     }
 
-    public void verifyPhoneNumberOwnership(String phoneNumber, String cardNumber) {
-        Client client = clientRepository.findByPhoneNumber(phoneNumber)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Phone number not found"));
-
-        if (!client.getUserCardNumber().equals(cardNumber)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Unauthorized access to this phone number");
-        }
-    }
-
+    // generates a random card number with 12 digits + "8008" suffix
     public String generateCardNumber() {
         Random random = new Random();
         StringBuilder cardNumber = new StringBuilder();
         for (int i = 0; i < 12; i++) {
-            cardNumber.append(random.nextInt(10));
+            cardNumber.append(random.nextInt(10)); // append a random digit
         }
-        cardNumber.append("8008");
+        cardNumber.append("8008"); // custom suffix
         return cardNumber.toString();
     }
 }

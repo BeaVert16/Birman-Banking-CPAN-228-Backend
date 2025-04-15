@@ -103,17 +103,14 @@ public class AuthController {
     public Map<String, String> register(@RequestBody Map<String, Object> requestBody) {
         String password = (String) requestBody.get("password"); // get the password from the request body
 
-        // validate the input
-        if (password == null || password.trim().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password cannot be null or empty");
-        }
-
         Client clientRequest = new Client(); // create a new client object
         clientRequest.setFirstName((String) requestBody.get("firstName"));
         clientRequest.setLastName((String) requestBody.get("lastName"));
         clientRequest.setPhoneNumber((String) requestBody.get("phoneNumber"));
         clientRequest.setEmail((String) requestBody.get("email"));
         
+        authenticationService.isPhoneNumberUnique(clientRequest.getPhoneNumber());
+
         // extract client details from the request body and builds the address object
         Address address = Address.builder()
                 .address((String) requestBody.get("address"))

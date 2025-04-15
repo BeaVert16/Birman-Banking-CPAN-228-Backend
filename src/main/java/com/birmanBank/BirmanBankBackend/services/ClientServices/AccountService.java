@@ -54,78 +54,80 @@ public class AccountService {
         return accountRepository.findByClientId(client.getClientId());
     }
 
+    //
     public Account createAndAttachAccount(String clientId, String accountName, String accountType) {
-        // Validate account type
+
+        // check if the provided account type is valid
         if (!accountType.equalsIgnoreCase("Chequing") && !accountType.equalsIgnoreCase("Savings")) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Invalid account type. Must be 'Chequing' or 'Savings'.");
         }
 
-        // Generate a unique account ID
+        // generates a unique account ID
         String accountId = generateAccountId();
 
-        // Create the account object
+        // creates a new account object
         Account account = Account.builder()
                 .accountId(accountId)
                 .clientId(clientId)
                 .accountName(accountName)
                 .accountType(accountType)
-                .balance(BigDecimal.ZERO) // Default balance
-                .status("ACTIVE") // Default status
+                .balance(BigDecimal.ZERO)
+                .status("ACTIVE")
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
-
-        // Save the account to the database
-        return accountRepository.save(account);
+        return accountRepository.save(account); // saves the account to the database
     }
 
     public Account updateAccountName(String accountId, String clientId, String newAccountName) {
-        // Retrieve the account by ID
+        
+        // get the account by ID
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found."));
 
-        // Ensure the account belongs to the client
+        // check if the account belongs to the client
         if (!account.getClientId().equals(clientId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "You do not have permission to update this account.");
         }
 
-        // Update the account name
+        //update the account name with nwe name 
         account.setAccountName(newAccountName);
+
+        // updates last modified timestamp
         account.setUpdatedAt(LocalDateTime.now());
 
         // Save the updated account
         return accountRepository.save(account);
     }
 
-    // Helper method to generate a unique account ID
+    // generates a unique account ID based on the current time im milliseconds
     private String generateAccountId() {
         return String.valueOf(System.currentTimeMillis());
     }
 
     public void deleteAccount(String accountId, String clientId) {
-        // Retrieve the account by ID
+        // get the account by ID
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found."));
 
-        // Ensure the account belongs to the client
+        // check if the account belongs to the client
         if (!account.getClientId().equals(clientId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "You do not have permission to delete this account.");
         }
 
-        // Retrieve all accounts for the client
+        // get all accounts for the client
         List<Account> clientAccounts = accountRepository.findByClientId(clientId);
 
-        // Check if the client has only one account
+        // check if the client has only one account
         if (clientAccounts.size() == 1) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "You cannot delete your only account.");
         }
 
-        // Check if the account is the original account (e.g., the first account
-        // created)
+        // trys to identify the original account created with the clients profile
         Account originalAccount = clientAccounts.stream()
                 .min((a1, a2) -> a1.getCreatedAt().compareTo(a2.getCreatedAt()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
@@ -136,16 +138,11 @@ public class AccountService {
                     "You cannot delete the original account created with your profile.");
         }
 
-        // Delete the account
+        // proceed to delete the account
         accountRepository.delete(account);
     }
 
-    //update an account
-    public Account updateAccount(Account account) {
-    return accountRepository.save(account);
-    }
-
-    //delete an account by its ID
+    // delete an account by its ID
     public void deleteAccount(String accountId) {
     accountRepository.deleteById(accountId);
     }

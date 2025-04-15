@@ -13,14 +13,14 @@ import java.time.LocalDateTime;
 @Document(collection = "inbox_messages")
 public class InboxMessage {
     @Id
-    private String messageId; // Unique identifier for the message
-    private String recipientId; // User ID of the recipient (admin)
-    private String senderId; // User ID of the sender (null for system messages)
-    private String subject; // Subject of the message
-    private String body; // Body of the message
-    private LocalDateTime timestamp; // Timestamp of when the message was created
-    private String status; // Status of the message (e.g., ACCEPTED, DENIED)
-    private LocalDateTime updatedAt; // Timestamp of the last update
+    private String messageId;
+    private String recipientId;
+    private String senderId;
+    private String subject;
+    private String body;
+    private LocalDateTime timestamp;
+    private String status;
+    private LocalDateTime updatedAt; 
     
-    private String targetClientId; // ID of the client to be activated
+    private String targetClientId; 
 }

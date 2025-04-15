@@ -10,11 +10,13 @@ import java.util.Optional;
 @Service
 public class MessageService {
 
+    //-----------------------Constructors----------------------//
     private final InboxMessageRepository inboxMessageRepository;
 
     public MessageService(InboxMessageRepository inboxMessageRepository) {
         this.inboxMessageRepository = inboxMessageRepository;
     }
+    //---------------------------------------------------------------//
 
     public void sendMessage(String recipientId, String subject, String body) {
         InboxMessage message = InboxMessage.builder()
@@ -27,11 +29,10 @@ public class MessageService {
         inboxMessageRepository.save(message);
     }
 
-    // Add this method for registration messages
     public void sendRegistrationMessage(String recipientId, String subject, String body, String targetClientId) {
         InboxMessage message = InboxMessage.builder()
                 .recipientId(recipientId)
-                .senderId(null) // System message
+                .senderId(null)
                 .subject(subject)
                 .body(body)
                 .timestamp(LocalDateTime.now())

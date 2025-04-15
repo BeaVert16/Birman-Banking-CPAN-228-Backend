@@ -15,16 +15,13 @@ public class Account {
     @Id
     private String accountId;
 
-    //foreign key linking to the Client's clientId.
-    //ensures that each account belongs to one and only one client.
     private String clientId;  
 
     private String accountName;
     private String accountType;
-    private BigDecimal balance; //current balance of the account
-    private String status; //active, inactive
+    private BigDecimal balance; 
+    private String status; 
 
-    //log time for admin side and client side reason
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

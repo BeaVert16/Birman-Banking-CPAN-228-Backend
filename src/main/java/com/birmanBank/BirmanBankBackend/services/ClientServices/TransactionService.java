@@ -33,6 +33,7 @@ public class TransactionService {
 
     private static final Logger logger = LoggerFactory.getLogger(TransactionService.class);
 
+    // -----------------------Constructors----------------------//
     private final TransactionRepository transactionRepository;
     private final AccountRepository accountRepository;
     private final ClientRepository clientRepository;
@@ -48,15 +49,16 @@ public class TransactionService {
         this.userRepository = userRepository;
         this.messageService = messageService;
     }
+    // ---------------------------------------------------------------//
 
-    // ------------------- Helper Methods -------------------
-
+    // validate the transaction amount (greater than zero)
     private void validateAmount(BigDecimal amount) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Transaction amount must be greater than zero");
         }
     }
 
+    // find an account by its ID and check if it belongs to the authenticated user
     private Account findAccountById(String accountId) {
         return accountRepository.findById(accountId)
                 .orElseThrow(() -> {
@@ -65,6 +67,7 @@ public class TransactionService {
                 });
     }
 
+    // validate that the account belongs to the authenticated user
     private Account validateAccountOwnership(String accountId, String expectedClientId, String accountRole) {
         Account account = findAccountById(accountId);
         if (!account.getClientId().equals(expectedClientId)) {
@@ -76,6 +79,7 @@ public class TransactionService {
         return account;
     }
 
+    // check if the account has sufficient balance for the transaction
     private void checkSufficientBalance(Account account, BigDecimal amountNeeded) {
         if (account.getBalance().compareTo(amountNeeded) < 0) {
             logger.error("Insufficient balance in account {}: required={}, available={}",
@@ -85,42 +89,29 @@ public class TransactionService {
         }
     }
 
+    // save a transaction record
     private void saveTransaction(Transaction transaction) {
         transactionRepository.save(transaction);
         logger.info("Transaction record created: type={}, accountId={}, amount={}",
                 transaction.getTransactionType(), transaction.getAccountId(), transaction.getTransactionAmount());
     }
 
-    // ------------------- Public Service Methods -------------------
-
-    // retrieve a transaction by its ID
+    // get a transaction by its ID
     public Optional<Transaction> getTransactionById(String transactionId) {
         return transactionRepository.findById(transactionId);
     }
 
-    // retrieve all transactions for a specific account with pagination
+    // get all transactions for a specific account with pagination
     public Page<Transaction> getTransactionsByAccountId(String accountId, Pageable pageable) {
-        // Optional: Add check to ensure the requesting user owns the accountId
         return transactionRepository.findByAccountId(accountId, pageable);
     }
 
-    // retrieve transactions for a specific account within a date range with
-    // pagination
-    public Page<Transaction> getTransactionsByAccountIdAndDateRange(String accountId, LocalDateTime startDate,
-            LocalDateTime endDate, Pageable pageable) {
-        if (startDate == null || endDate == null || startDate.isAfter(endDate)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid date range provided.");
-        }
-        // Optional: Add check to ensure the requesting user owns the accountId
-        return transactionRepository.findByAccountIdAndTimestampBetween(accountId, startDate, endDate, pageable);
-    }
-
-    // retrieve all transactions (Consider if this is needed/secure for clients)
+    // get all transactions for a specific client with pagination
     public List<Transaction> getAllTransactions() {
-        // Be cautious exposing this directly to clients without authorization checks
         return transactionRepository.findAll();
     }
 
+    // handles internal transfers between accounts owned by the same client
     @Transactional
     public void internalTransfer(String clientId, String fromAccountId, String toAccountId, BigDecimal amount) {
         logger.info("Initiating internal transfer: clientId={}, fromAccountId={}, toAccountId={}, amount={}",
@@ -128,15 +119,17 @@ public class TransactionService {
 
         validateAmount(amount);
 
+        // check if the source and destination accounts are different
         if (fromAccountId.equals(toAccountId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Source and destination accounts cannot be the same");
         }
 
+        // check if the source and destination accounts belong to the same client
         Account fromAccount = validateAccountOwnership(fromAccountId, clientId, "Source");
         Account toAccount = validateAccountOwnership(toAccountId, clientId, "Destination");
 
-        // Calculate fee
+        // calculate the transfer fee if the source is a savings account
         BigDecimal fee = BigDecimal.ZERO;
         if ("Savings".equalsIgnoreCase(fromAccount.getAccountType())) {
             fee = amount.multiply(new BigDecimal("0.015")); // 1.5% fee
@@ -144,19 +137,21 @@ public class TransactionService {
         }
         BigDecimal totalDeduction = amount.add(fee);
 
+        // check if the source account has sufficient balance
         checkSufficientBalance(fromAccount, totalDeduction);
 
-        // Perform transfer
-        fromAccount.setBalance(fromAccount.getBalance().subtract(totalDeduction));
-        toAccount.setBalance(toAccount.getBalance().add(amount));
 
+        fromAccount.setBalance(fromAccount.getBalance().subtract(totalDeduction)); // deduct the amount and fee from source account
+        toAccount.setBalance(toAccount.getBalance().add(amount)); // add the amount to destination account
+
+        //save the updated accounts
         accountRepository.save(fromAccount);
         accountRepository.save(toAccount);
 
         logger.info("Internal transfer successful: fromAccountId={}, toAccountId={}, amount={}, fee={}",
                 fromAccountId, toAccountId, amount, fee);
 
-        // Create transaction records
+        // creates the transaction records
         LocalDateTime now = LocalDateTime.now();
         String feeDescription = fee.compareTo(BigDecimal.ZERO) > 0 ? " (Fee: " + fee + ")" : "";
 
@@ -183,37 +178,42 @@ public class TransactionService {
         saveTransaction(credit);
     }
 
+    // handles transfers between different clients
     @Transactional
     public void transferMoney(String senderClientId, String senderAccountId, String recipientPhoneNumber,
             BigDecimal amount) {
+
+        // logs the transfer initiation
         logger.info("Initiating transfer: senderClientId={}, senderAccountId={}, recipientPhoneNumber={}, amount={}",
                 senderClientId, senderAccountId, recipientPhoneNumber, amount);
 
-        validateAmount(amount);
+        validateAmount(amount); // check if the amount is valid
 
+        // check the ownership of the sender's account and check balance
         Account senderAccount = validateAccountOwnership(senderAccountId, senderClientId, "Sender");
         checkSufficientBalance(senderAccount, amount);
 
-        // Find recipient client and account
+        //find the recipient client by phone number
         Client recipientClient = clientRepository.findByPhoneNumber(recipientPhoneNumber)
                 .orElseThrow(() -> {
                     logger.error("Recipient not found with phone number: {}", recipientPhoneNumber);
                     return new ResponseStatusException(HttpStatus.NOT_FOUND, "Recipient not found");
                 });
 
-        // Check if the recipient is an admin
+        //find the recipient user by client ID
         User recipientUser = userRepository.findByCardNumber(recipientClient.getClientId())
                 .orElseThrow(() -> {
                     logger.error("Recipient user not found for clientId: {}", recipientClient.getClientId());
                     return new ResponseStatusException(HttpStatus.NOT_FOUND, "Recipient user not found");
                 });
 
+        // prevents transfers to admin accounts
         if ("ADMIN".equalsIgnoreCase(recipientUser.getRole())) {
             logger.error("Transfer to admin accounts is not allowed: recipientPhoneNumber={}", recipientPhoneNumber);
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Transfers to admin accounts are not allowed");
         }
 
-        // Assuming recipient has at least one account, find the first one.
+        //find the recipient account by client ID
         Account recipientAccount = accountRepository.findByClientId(recipientClient.getClientId())
                 .stream().findFirst()
                 .orElseThrow(() -> {
@@ -221,7 +221,7 @@ public class TransactionService {
                     return new ResponseStatusException(HttpStatus.NOT_FOUND, "Recipient account not found");
                 });
 
-        // Perform transfer
+        // deduct the amount from the sender's account and add it to the recipient's account
         senderAccount.setBalance(senderAccount.getBalance().subtract(amount));
         recipientAccount.setBalance(recipientAccount.getBalance().add(amount));
 
@@ -231,7 +231,7 @@ public class TransactionService {
         logger.info("Transfer successful: senderAccountId={}, recipientAccountId={}, amount={}",
                 senderAccountId, recipientAccount.getAccountId(), amount);
 
-        // Create transaction records
+        // creates transaction record
         LocalDateTime now = LocalDateTime.now();
         Transaction debit = Transaction.builder()
                 .accountId(senderAccount.getAccountId())
@@ -256,26 +256,25 @@ public class TransactionService {
         saveTransaction(debit);
         saveTransaction(credit);
 
-        // Send a notification to the recipient's inbox
+        // send notification to recipient
         String subject = "Money Received";
         String body = "You have received a transfer of $" + amount + " from client ID: " + senderClientId;
         messageService.sendMessage(recipientClient.getClientId(), subject, body);
     }
 
-    @Transactional // Ensure atomicity
+    // handles deposits into an account
+    @Transactional
     public void depositMoney(String clientId, String accountId, BigDecimal amount) {
         logger.info("Initiating deposit: clientId={}, accountId={}, amount={}", clientId, accountId, amount);
 
         validateAmount(amount);
         Account account = validateAccountOwnership(accountId, clientId, "Deposit");
 
-        // Perform deposit
         account.setBalance(account.getBalance().add(amount));
         accountRepository.save(account);
 
         logger.info("Deposit successful: accountId={}, amount={}", accountId, amount);
 
-        // Create transaction record
         Transaction deposit = Transaction.builder()
                 .accountId(account.getAccountId())
                 .transactionType("CREDIT")
