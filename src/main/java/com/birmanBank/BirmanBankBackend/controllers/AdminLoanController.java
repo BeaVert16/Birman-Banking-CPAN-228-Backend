@@ -1,6 +1,7 @@
 package com.birmanBank.BirmanBankBackend.controllers;
 
 import com.birmanBank.BirmanBankBackend.models.Loan;
+import com.birmanBank.BirmanBankBackend.repositories.LoanRepository;
 import com.birmanBank.BirmanBankBackend.services.LoanService;
 import com.birmanBank.BirmanBankBackend.services.AuthenticationService;
 import lombok.RequiredArgsConstructor;
@@ -15,12 +16,20 @@ import java.util.List;
 public class AdminLoanController {
     private final LoanService loanService;
     private final AuthenticationService authService;
+    private final LoanRepository loanRepository;
 
     // endpoint to get all loans pending approval.
     @GetMapping("/pending")
     public ResponseEntity<List<Loan>> getPendingLoans(@RequestHeader("Authorization") String auth) {
         String admin = authService.validateAndExtractUsername(auth);
         return ResponseEntity.ok(loanService.getPendingLoans());
+    }
+
+    // endpoint to get all loans awaiting payment.
+    @GetMapping("/approved")
+    public ResponseEntity<List<Loan>> getApprovedLoans(@RequestHeader("Authorization") String auth) {
+        authService.validateAndExtractUsername(auth);
+        return ResponseEntity.ok(loanRepository.findByStatus("AWAITING_PAYMENT"));
     }
 
     // endpoint to approve a loan.
