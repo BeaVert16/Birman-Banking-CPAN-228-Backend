@@ -52,4 +52,6 @@ public class ClientController {
         List<InboxMessage> messages = inboxMessageRepository.findByRecipientId(client.getUserCardNumber()); // fetch inbox messages for the authenticated user
         return ResponseEntity.ok(messages);
     }
+    
+    
 }

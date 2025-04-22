@@ -157,8 +157,11 @@ public class ClientService {
         return String.valueOf(System.currentTimeMillis());
     }
 
-    // delete a client by its ID
+    // deletes a client by its ID
     public void deleteClient(String clientId) {
+        // validate if the client exists
+        clientRepository.findById(clientId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Client not found"));
         clientRepository.deleteById(clientId);
     }
 }

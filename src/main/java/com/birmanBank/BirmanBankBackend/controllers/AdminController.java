@@ -152,7 +152,7 @@ public class AdminController {
     // endpoint to delete a client by ID
     @DeleteMapping("/clients/{clientId}")
     public ResponseEntity<Void> deleteClient(@PathVariable String clientId) {
-        // calls the clientService to delete a client by ID
+        // delete the client using the service
         clientService.deleteClient(clientId);
         return ResponseEntity.noContent().build();
     }
