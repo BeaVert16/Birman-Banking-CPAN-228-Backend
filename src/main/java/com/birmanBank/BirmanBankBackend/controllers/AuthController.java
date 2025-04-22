@@ -36,7 +36,7 @@ import java.util.Random;
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    //-----------------------Constructors----------------------//
+    // -----------------------Constructors----------------------//
     private final AuthenticationManager authenticationManager;
     private final AuthenticationService authenticationService;
     private final UserRepository userRepository;
@@ -73,22 +73,19 @@ public class AuthController {
         }
 
         try {
-            // authenticate the user using the provided credentials
+            // authenticate the user
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(cardNumber, password));
 
-            // generate a JWT token for the authenticated user
+            // generate a JWT token
             String token = authenticationService.generateToken(authentication.getName());
 
-            // fetch the user from the database using the card number
-            User user = userRepository.findByCardNumber(cardNumber)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
-            
-            // debugging stuff
+            // fetch the user
+            User user = authenticationService.getClientByCardNumber(cardNumber);
+
             response.put("message", "Login successful");
             response.put("token", token);
             response.put("role", user.getRole());
-            System.out.println("User found: " + response);
 
             return ResponseEntity.ok(response);
 
@@ -108,7 +105,7 @@ public class AuthController {
         clientRequest.setLastName((String) requestBody.get("lastName"));
         clientRequest.setPhoneNumber((String) requestBody.get("phoneNumber"));
         clientRequest.setEmail((String) requestBody.get("email"));
-        
+
         authenticationService.isPhoneNumberUnique(clientRequest.getPhoneNumber());
 
         // extract client details from the request body and builds the address object
@@ -171,17 +168,17 @@ public class AuthController {
         response.put("cardNumber", cardNumber); // cardNumber is the same as client.getClientId() here
 
         // List<User> admins = userRepository.findAll().stream()
-        //         .filter(adminUser -> "ADMIN".equalsIgnoreCase(adminUser.getRole()))
-        //         .toList();
+        // .filter(adminUser -> "ADMIN".equalsIgnoreCase(adminUser.getRole()))
+        // .toList();
 
         // for (User admin : admins) {
-        //     messageService.sendRegistrationMessage( // Changed from sendMessage
-        //             admin.getCardNumber(),
-        //             "New User Registration",
-        //             "A new user with card number " + client.getClientId()
-        //                     + " has registered and is awaiting activation.",
-        //             client.getClientId()
-        //     );
+        // messageService.sendRegistrationMessage( // Changed from sendMessage
+        // admin.getCardNumber(),
+        // "New User Registration",
+        // "A new user with card number " + client.getClientId()
+        // + " has registered and is awaiting activation.",
+        // client.getClientId()
+        // );
         // }
 
         return response;
@@ -192,27 +189,22 @@ public class AuthController {
     public ResponseEntity<?> sessionCheck(HttpServletRequest request) {
         Map<String, Object> response = new HashMap<>();
         try {
-            // validate and extract the username (card number) from the token
-            String authorizationHeader = request.getHeader("Authorization");
-            String cardNumber = authenticationService.validateAndExtractUsername(authorizationHeader);
+            // Validate and extract the card number
+            String cardNumber = authenticationService.validateAndExtractUsername(request.getHeader("Authorization"));
 
-            // fetch the user from the User table
-            User user = userRepository.findByCardNumber(cardNumber)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
+            // Fetch the user
+            User user = authenticationService.getClientByCardNumber(cardNumber);
 
-            // check if the user is an admin
-            // if the user is an admin it defines the response for the admin
-            if ("ADMIN".equalsIgnoreCase(user.getRole())) {
+            // Check if the user is an admin
+            if (authenticationService.isAdmin(user)) {
                 response.put("isAuthenticated", true);
                 response.put("user", Map.of(
                         "cardNumber", user.getCardNumber(),
                         "role", user.getRole(),
                         "isAdmin", true));
             } else {
-                // fetch the client from the Client table
-                // if the user is not an admin it defines the response for the client
-                Client client = clientRepository.findByUserCardNumber(user.getCardNumber())
-                        .orElseThrow(() -> new RuntimeException("Client not found"));
+                // Fetch the client if the user is not an admin
+                Client client = authenticationService.getClientByUserCardNumber(user.getCardNumber());
 
                 response.put("isAuthenticated", true);
                 response.put("user", Map.of(
@@ -227,17 +219,6 @@ public class AuthController {
             response.put("error", e.getMessage());
         }
 
-        System.out.println("Session check response: " + response); //debugging stuff
         return ResponseEntity.ok(response);
     }
-
-    // private String generateCardNumber() {
-    //     Random random = new Random();
-    //     StringBuilder cardNumber = new StringBuilder();
-    //     for (int i = 0; i < 12; i++) {
-    //         cardNumber.append(random.nextInt(10));
-    //     }
-    //     cardNumber.append("8008");
-    //     return cardNumber.toString();
-    // }
 }

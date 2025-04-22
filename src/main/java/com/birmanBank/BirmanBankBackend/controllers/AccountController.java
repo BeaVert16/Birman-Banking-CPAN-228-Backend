@@ -6,6 +6,7 @@ import com.birmanBank.BirmanBankBackend.models.Client;
 import com.birmanBank.BirmanBankBackend.services.AuthenticationService;
 import com.birmanBank.BirmanBankBackend.services.ClientServices.AccountService;
 import com.birmanBank.BirmanBankBackend.services.ClientServices.TransactionService;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -14,6 +15,9 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.PagedModel;
+import org.springframework.data.web.PagedResourcesAssembler;
 
 import java.util.List;
 import java.util.Map;
@@ -27,23 +31,23 @@ import java.util.Map;
 @RequestMapping("/api/accounts")
 public class AccountController {
 
-    //-----------------------Constructors----------------------//
+    // -----------------------Constructors----------------------//
     private final AccountService accountService;
     private final TransactionService transactionService;
-    private final AuthenticationService authUserDetailsService;
+    private final AuthenticationService authenticationService;
 
     public AccountController(AccountService accountService, TransactionService transactionService,
-            AuthenticationService authUserDetailsService) {
+            AuthenticationService authenticationService) {
         this.accountService = accountService;
         this.transactionService = transactionService;
-        this.authUserDetailsService = authUserDetailsService;
+        this.authenticationService = authenticationService;
     }
     // ---------------------------------------------------------------//
 
     // endpoint to get all accounts for the authenticated user
     @GetMapping
     public ResponseEntity<List<Account>> getUserAccounts(@AuthenticationPrincipal UserDetails userDetails) {
-        String cardNumber = authUserDetailsService.validateAuthenticatedUser(userDetails); // validate the authenticated user
+        String cardNumber = authenticationService.validateAuthenticatedUser(userDetails); // validate the authenticated user
         List<Account> accounts = accountService.getAccountsForAuthenticatedUser(cardNumber); // get accounts for the authenticated user
         return ResponseEntity.ok(accounts); // return the list of accounts
     }
@@ -52,36 +56,38 @@ public class AccountController {
     @GetMapping("/{accountId}/basic")
     public ResponseEntity<Account> getAccountBasicInfo(@PathVariable String accountId,
             @AuthenticationPrincipal UserDetails userDetails) { //
-        String cardNumber = authUserDetailsService.validateAuthenticatedUser(userDetails); // get the authenticated client
-        authUserDetailsService.verifyAccountOwnership(accountId, cardNumber); // verify ownership of the account
+
+        authenticationService.validateUserAndAccountOwnership(userDetails, accountId);
 
         // retrieve the account by ID
         Account account = accountService.getAccountById(accountId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found")); // handle account is not found case
+                // handle account is not found case
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found"));
+
         return ResponseEntity.ok(account); // return the account information
     }
 
-    // endpoint to get detailed information about a specific account, including transactions
-    // uses pagnation
+    // endpoint to get detailed information about a specific account, including
+    // transactions
     @GetMapping("/{accountId}/details")
-    public ResponseEntity<AccountDetailsDto> getAccountDetails(
+    public ResponseEntity<PagedModel<EntityModel<Transaction>>> getAccountDetails(
             @PathVariable String accountId,
             @AuthenticationPrincipal UserDetails userDetails,
-            Pageable pageable) {
+            Pageable pageable,
+            PagedResourcesAssembler<Transaction> pagedResourcesAssembler) {
 
-        String cardNumber = authUserDetailsService.validateAuthenticatedUser(userDetails); // validate the authenticated user
-        authUserDetailsService.verifyAccountOwnership(accountId, cardNumber); // verify ownership of the account
+        String cardNumber = authenticationService.validateAuthenticatedUser(userDetails); // validate the authenticated user
+        authenticationService.verifyAccountOwnership(accountId, cardNumber); // verify ownership of the account
 
-        // retrieve the account by ID
-        Account account = accountService.getAccountById(accountId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found")); // handle account is not found case
+        accountService.getAccountById(accountId)
+                // handle account is not found case
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found"));
 
-        // retrieve transactions for the account using pagination
-        Page<Transaction> transactions = transactionService.getTransactionsByAccountId(accountId, pageable); 
+        Page<Transaction> transactions = transactionService.getTransactionsByAccountId(accountId, pageable);
 
-        // create a response DTO with account and transactions 
-        AccountDetailsDto responseDto = new AccountDetailsDto(account, transactions); 
-        return ResponseEntity.ok(responseDto);
+        PagedModel<EntityModel<Transaction>> pagedModel = pagedResourcesAssembler.toModel(transactions);
+
+        return ResponseEntity.ok(pagedModel);
     }
 
     // endpoint to update the name of a specific account
@@ -90,18 +96,13 @@ public class AccountController {
             @PathVariable String accountId,
             @RequestBody Map<String, String> requestBody,
             @AuthenticationPrincipal UserDetails userDetails) {
-        
-        String cardNumber = authUserDetailsService.validateAuthenticatedUser(userDetails); // validate the authenticated user
-        Client client = authUserDetailsService.getAuthenticatedClient(cardNumber); 
-        String newAccountName = requestBody.get("accountName"); // get the new account name from the request body (frontend)
 
-        // check if the new account name is provided
-        // if not, throw a bad request exception
-        if (newAccountName == null || newAccountName.trim().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "New account name is required.");
-        }
+        authenticationService.validateUserAndAccountOwnership(userDetails, accountId);
+        Client client = authenticationService.getAuthenticatedClient(userDetails); // Fetch the Client object
+        String newAccountName = requestBody.get("accountName"); // get the new account name from the request body
 
-        Account updatedAccount = accountService.updateAccountName(accountId, client.getClientId(), newAccountName); // update the account name
+        // update the account name
+        Account updatedAccount = accountService.updateAccountName(accountId, client.getClientId(), newAccountName);
 
         return ResponseEntity.ok(updatedAccount);
     }
@@ -112,22 +113,13 @@ public class AccountController {
             @RequestBody Map<String, String> accountRequest,
             @AuthenticationPrincipal UserDetails userDetails) {
 
-        String cardNumber = authUserDetailsService.validateAuthenticatedUser(userDetails); // validate the authenticated user
-        Client client = authUserDetailsService.getAuthenticatedClient(cardNumber); // get the authenticated clien
-
+        Client client = authenticationService.getAuthenticatedClient(userDetails);
         // extract account details from the request body
         String accountName = accountRequest.get("accountName");
         String accountType = accountRequest.get("accountType");
 
-        // check if the account name is provided
-        // if not throw a bad request exception
-        if (accountName == null || accountName.trim().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Account name is required.");
-        }
-
         // check if the account type is provided
         Account createdAccount = accountService.createAndAttachAccount(client.getClientId(), accountName, accountType);
-
 
         return ResponseEntity.status(HttpStatus.CREATED).body(createdAccount); // returns the created account with status
     }
@@ -138,13 +130,13 @@ public class AccountController {
             @PathVariable String accountId,
             @AuthenticationPrincipal UserDetails userDetails) {
 
-        String cardNumber = authUserDetailsService.validateAuthenticatedUser(userDetails); // validate the authenticated user
-        Client client = authUserDetailsService.getAuthenticatedClient(cardNumber); // get the authenticated client
+        String cardNumber = authenticationService.validateAuthenticatedUser(userDetails); // validate the authenticated user
+        Client client = authenticationService.getClientByUserCardNumber(cardNumber); // Fetch the Client object
 
         // delete the account
         accountService.deleteAccount(accountId, client.getClientId());
 
         // return a no content response indicating successful deletion, no actual return
-        return ResponseEntity.noContent().build(); 
+        return ResponseEntity.noContent().build();
     }
 }

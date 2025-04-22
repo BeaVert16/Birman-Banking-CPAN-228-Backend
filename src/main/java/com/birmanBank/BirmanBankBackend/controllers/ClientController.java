@@ -40,19 +40,16 @@ public class ClientController {
     // currently not used - may be moved to account controller for fetching account details for client 
     @GetMapping("/me")
     public Client getLoggedInClient(@AuthenticationPrincipal UserDetails userDetails) {
-        // validate the authenticated user
-        String cardNumber = authenticationService.validateAuthenticatedUser(userDetails);
-
         // fetch the client details using the card number
-        return authenticationService.getAuthenticatedClient(cardNumber);
+        return clientService.getAuthenticatedClient(userDetails, authenticationService);
     }
 
     // endpoint to fetch inbox messages for the logged-in client
     @GetMapping("/inbox")
     public ResponseEntity<List<InboxMessage>> getInboxMessages(@AuthenticationPrincipal UserDetails userDetails) {
 
-        String cardNumber = authenticationService.validateAuthenticatedUser(userDetails); // validate the authenticated user
-        List<InboxMessage> messages = inboxMessageRepository.findByRecipientId(cardNumber); // fetch inbox messages for the authenticated user
+        Client client = clientService.getAuthenticatedClient(userDetails, authenticationService); // validate the authenticated user
+        List<InboxMessage> messages = inboxMessageRepository.findByRecipientId(client.getUserCardNumber()); // fetch inbox messages for the authenticated user
         return ResponseEntity.ok(messages);
     }
 }

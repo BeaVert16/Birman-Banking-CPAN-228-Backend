@@ -21,7 +21,7 @@ public class AdminLoanController {
     // endpoint to get all loans pending approval.
     @GetMapping("/pending")
     public ResponseEntity<List<Loan>> getPendingLoans(@RequestHeader("Authorization") String auth) {
-        String admin = authService.validateAndExtractUsername(auth);
+        authService.validateAndExtractUsername(auth);
         return ResponseEntity.ok(loanService.getPendingLoans());
     }
 

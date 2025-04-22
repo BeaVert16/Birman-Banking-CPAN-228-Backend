@@ -9,6 +9,8 @@ import com.birmanBank.BirmanBankBackend.models.Client;
 import com.birmanBank.BirmanBankBackend.repositories.AccountRepository;
 import com.birmanBank.BirmanBankBackend.repositories.ClientRepository;
 
+import com.birmanBank.BirmanBankBackend.utils.ValidationUtil;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -48,20 +50,16 @@ public class AccountService {
 
     // retrieve all accounts for a user by their card number (moved from controller)
     public List<Account> getAccountsForAuthenticatedUser(String cardNumber) {
+        ValidationUtil.validateCardNumber(cardNumber);
         Client client = clientRepository.findByUserCardNumber(cardNumber)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Client associated with token not found"));
         return accountRepository.findByClientId(client.getClientId());
     }
 
-    //
     public Account createAndAttachAccount(String clientId, String accountName, String accountType) {
-
-        // check if the provided account type is valid
-        if (!accountType.equalsIgnoreCase("Chequing") && !accountType.equalsIgnoreCase("Savings")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Invalid account type. Must be 'Chequing' or 'Savings'.");
-        }
+        // validate account type
+        ValidationUtil.validateAccountType(accountType);
 
         // generates a unique account ID
         String accountId = generateAccountId();
@@ -81,18 +79,14 @@ public class AccountService {
     }
 
     public Account updateAccountName(String accountId, String clientId, String newAccountName) {
-        
         // get the account by ID
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found."));
 
-        // check if the account belongs to the client
-        if (!account.getClientId().equals(clientId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "You do not have permission to update this account.");
-        }
+        // validate account ownership
+        ValidationUtil.validateAccountOwnership(account.getClientId(), clientId);
 
-        //update the account name with nwe name 
+        // update the account name with new name
         account.setAccountName(newAccountName);
 
         // updates last modified timestamp
@@ -102,7 +96,7 @@ public class AccountService {
         return accountRepository.save(account);
     }
 
-    // generates a unique account ID based on the current time im milliseconds
+    // generates a unique account ID based on the current time in milliseconds
     private String generateAccountId() {
         return String.valueOf(System.currentTimeMillis());
     }
@@ -112,11 +106,8 @@ public class AccountService {
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found."));
 
-        // check if the account belongs to the client
-        if (!account.getClientId().equals(clientId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "You do not have permission to delete this account.");
-        }
+        // validate account ownership
+        ValidationUtil.validateAccountOwnership(account.getClientId(), clientId);
 
         // get all accounts for the client
         List<Account> clientAccounts = accountRepository.findByClientId(clientId);
@@ -127,7 +118,7 @@ public class AccountService {
                     "You cannot delete your only account.");
         }
 
-        // trys to identify the original account created with the clients profile
+        // try to identify the original account created with the client's profile
         Account originalAccount = clientAccounts.stream()
                 .min((a1, a2) -> a1.getCreatedAt().compareTo(a2.getCreatedAt()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
@@ -144,6 +135,11 @@ public class AccountService {
 
     // delete an account by its ID
     public void deleteAccount(String accountId) {
-    accountRepository.deleteById(accountId);
+        accountRepository.deleteById(accountId);
+    }
+
+    public Account getAccountOrThrow(String accountId) {
+        return accountRepository.findById(accountId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found"));
     }
 }

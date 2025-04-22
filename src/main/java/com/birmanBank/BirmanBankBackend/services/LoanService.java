@@ -6,6 +6,7 @@ import com.birmanBank.BirmanBankBackend.models.Transaction;
 import com.birmanBank.BirmanBankBackend.repositories.AccountRepository;
 import com.birmanBank.BirmanBankBackend.repositories.LoanRepository;
 import com.birmanBank.BirmanBankBackend.repositories.TransactionRepository;
+import com.birmanBank.BirmanBankBackend.utils.ValidationUtil;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,9 +26,9 @@ public class LoanService {
 
     // process a user's request for loan.
     public Loan requestLoan(String userCard, BigDecimal amount) {
-        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Loan amount must be positive");
-        }
+        ValidationUtil.validateCardNumber(userCard);
+        ValidationUtil.validatePositiveAmount(amount, "Loan amount");
+
         Loan loan = Loan.builder()
                 .userCardNumber(userCard)
                 .amountRequested(amount)
@@ -40,6 +41,7 @@ public class LoanService {
 
     // get loans by user.
     public List<Loan> getLoansForUser(String userCard) {
+        ValidationUtil.validateCardNumber(userCard);
         return loanRepository.findByUserCardNumber(userCard);
     }
 
@@ -50,6 +52,9 @@ public class LoanService {
 
     // process for approving a loan.
     public Loan approveLoan(String loanId, String adminCard) {
+        ValidationUtil.validateCardNumber(adminCard);
+        ValidationUtil.validateNotEmpty(loanId, "Loan ID");
+
         Loan loan = loanRepository.findById(loanId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Loan not found"));
 
@@ -85,6 +90,9 @@ public class LoanService {
 
     // deny loan.
     public void denyLoan(String loanId, String adminCard) {
+        ValidationUtil.validateCardNumber(adminCard);
+        ValidationUtil.validateNotEmpty(loanId, "Loan ID");
+
         Loan loan = loanRepository.findById(loanId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Loan not found"));
         loan.setStatus("DENIED");
@@ -95,9 +103,9 @@ public class LoanService {
 
     // loan payment complete.
     public Loan payDownLoan(String loanId, BigDecimal payment) {
-        if (payment.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Payment must be positive");
-        }
+        ValidationUtil.validateNotEmpty(loanId, "Loan ID");
+        ValidationUtil.validatePositiveAmount(payment, "Payment amount");
+
         Loan loan = loanRepository.findById(loanId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Loan not found"));
 
@@ -110,9 +118,7 @@ public class LoanService {
                         "No Chequing account for user " + loan.getUserCardNumber()));
 
         // sufficient balance check.
-        if (acct.getBalance().compareTo(payment) < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Insufficient funds for payment");
-        }
+        ValidationUtil.validateSufficientBalance(acct.getBalance(), payment);
 
         // debit balance.
         acct.setBalance(acct.getBalance().subtract(payment));

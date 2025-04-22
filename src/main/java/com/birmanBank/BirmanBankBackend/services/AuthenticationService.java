@@ -7,6 +7,7 @@ import com.birmanBank.BirmanBankBackend.repositories.AccountRepository;
 import com.birmanBank.BirmanBankBackend.repositories.ClientRepository;
 import com.birmanBank.BirmanBankBackend.repositories.UserRepository;
 import com.birmanBank.BirmanBankBackend.utils.JwtUtil;
+import com.birmanBank.BirmanBankBackend.utils.ValidationUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,7 +25,6 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class AuthenticationService implements UserDetailsService {
 
-    // -----------------------Constructors----------------------//
     private final UserRepository userRepository;
     private final AccountRepository accountRepository;
     private final ClientRepository clientRepository;
@@ -37,41 +37,46 @@ public class AuthenticationService implements UserDetailsService {
         this.clientRepository = clientRepository;
         this.jwtUtil = jwtUtil;
     }
-    // ---------------------------------------------------------------//
 
-    // checks if the phone number is unique
     public boolean isPhoneNumberUnique(String phoneNumber) {
-
-        boolean exists = clientRepository.findByPhoneNumber(phoneNumber).isPresent();
-        if (exists) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phone number already in use");
-        }
+        ValidationUtil.validatePhoneNumber(phoneNumber);
+        ValidationUtil.validateUniquePhoneNumber(phoneNumber, clientRepository);
         return true;
     }
 
-    // loads a user by there card num for spring security
+    public User getClientByCardNumber(String cardNumber) {
+        ValidationUtil.validateCardNumber(cardNumber);
+        return userRepository.findByCardNumber(cardNumber)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+    }
+
+    public Client getClientByUserCardNumber(String cardNumber) {
+        ValidationUtil.validateCardNumber(cardNumber);
+        return clientRepository.findByUserCardNumber(cardNumber)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Client not found"));
+    }
+
+    public boolean isAdmin(User user) {
+        return "ADMIN".equalsIgnoreCase(user.getRole());
+    }
+
     @Override
     public UserDetails loadUserByUsername(String cardNumber) throws UsernameNotFoundException {
-        // get the user by card number
+        ValidationUtil.validateCardNumber(cardNumber);
         User appUser = userRepository.findByCardNumber(cardNumber)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with card number: " + cardNumber));
 
-        // build the list of authorities
         List<GrantedAuthority> authorities = new ArrayList<>();
 
-        // add users main role to the list of authorities
         if (appUser.getRole() != null && !appUser.getRole().isEmpty()) {
             authorities.add(new SimpleGrantedAuthority("ROLE_" + appUser.getRole().toUpperCase()));
         }
 
-        // if the user is a client, fetch the Client details and add activation-based
-        // authorities
         if ("CLIENT".equalsIgnoreCase(appUser.getRole())) {
             Client client = clientRepository.findByUserCardNumber(appUser.getCardNumber())
                     .orElseThrow(() -> new UsernameNotFoundException(
                             "Client details not found for card number: " + cardNumber));
 
-            // add authority based on activation status
             if (client.getActivated() != null && client.getActivated()) {
                 authorities.add(new SimpleGrantedAuthority("ROLE_ACTIVATED"));
             } else {
@@ -80,13 +85,14 @@ public class AuthenticationService implements UserDetailsService {
         }
 
         return new org.springframework.security.core.userdetails.User(
-                appUser.getCardNumber(), // Principal identifier
-                appUser.getPassword(), // Encoded password
-                authorities // List of granted authorities
-        );
+                appUser.getCardNumber(),
+                appUser.getPassword(),
+                authorities);
     }
 
     public void verifyAccountOwnership(String accountId, String cardNumber) {
+        ValidationUtil.validateCardNumber(cardNumber);
+        ValidationUtil.validateNotEmpty(accountId, "Account ID");
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found"));
 
@@ -94,47 +100,31 @@ public class AuthenticationService implements UserDetailsService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Client associated with account not found"));
 
-        if (!client.getUserCardNumber().equals(cardNumber)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Unauthorized access to account");
-        }
+        ValidationUtil.validateAccountOwnership(client.getUserCardNumber(), cardNumber);
     }
 
-    // extracts username (card number) from jwt token in authorization header
     public String validateAndExtractUsername(String authorizationHeader) {
-        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-            return null; // return null if header is missing or malformed
-        }
+        String token = authorizationHeader.substring(7);
+        ValidationUtil.validateToken(token, jwtUtil);
 
-        String token = authorizationHeader.substring(7); // remove "Bearer " prefix
         try {
-            String username = jwtUtil.extractUsername(token); // extract username from token
-
-            // validate token (checks signature, expiration, etc.)
-            if (!jwtUtil.validateToken(token)) {
-                return null; // return null if token is invalid
-            }
-
-            return username; // return valid extracted username
+            return jwtUtil.extractUsername(token);
         } catch (Exception e) {
-            System.err.println("token validation/extraction failed: " + e.getMessage());
-            return null; // return null if extraction or validation fails
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token validation failed: " + e.getMessage());
         }
     }
 
-    // returns authenticated user's card number from userdetails
     public String getAuthenticatedCardNumber(UserDetails userDetails) {
         if (userDetails == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "user not authenticated");
         }
-        return userDetails.getUsername(); // spring security uses username for card number
+        return userDetails.getUsername();
     }
 
-    // generates a jwt token using the user's card number
     public String generateToken(String username) {
-        return jwtUtil.generateToken(username); // delegate to jwt util
+        return jwtUtil.generateToken(username);
     }
 
-    // validates that the user is authenticated and returns their card number
     public String validateAuthenticatedUser(UserDetails userDetails) {
         if (userDetails == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "user not authenticated");
@@ -142,20 +132,23 @@ public class AuthenticationService implements UserDetailsService {
         return userDetails.getUsername();
     }
 
-    // fetches the client associated with the given card number
-    public Client getAuthenticatedClient(String cardNumber) {
-        return clientRepository.findByUserCardNumber(cardNumber)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "client not found"));
-    }
-
-    // generates a random card number with 12 digits + "8008" suffix
     public String generateCardNumber() {
         Random random = new Random();
         StringBuilder cardNumber = new StringBuilder();
         for (int i = 0; i < 12; i++) {
-            cardNumber.append(random.nextInt(10)); // append a random digit
+            cardNumber.append(random.nextInt(10));
         }
-        cardNumber.append("8008"); // custom suffix
+        cardNumber.append("8008");
         return cardNumber.toString();
+    }
+
+    public void validateUserAndAccountOwnership(UserDetails userDetails, String accountId) {
+        String cardNumber = validateAuthenticatedUser(userDetails);
+        verifyAccountOwnership(accountId, cardNumber);
+    }
+
+    public Client getAuthenticatedClient(UserDetails userDetails) {
+        String cardNumber = validateAuthenticatedUser(userDetails);
+        return getClientByUserCardNumber(cardNumber);
     }
 }
